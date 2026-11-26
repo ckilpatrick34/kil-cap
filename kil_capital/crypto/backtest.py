@@ -54,6 +54,7 @@ def evaluate(closes: list[float], holdout: float = 0.4, fee: float = FEE_PER_SID
         out[key] = {"name": name, "desc": desc, "position": round(pos[-1], 3),
                     "in_sample": metrics(bt["rets"][:cut]), "out_of_sample": metrics(bt["rets"][cut:]),
                     "full": metrics(bt["rets"]), "trades": bt["trades"], "exposure": round(bt["exposure"], 3),
+                    "avg_hold_days": round(bt["exposure"] * (len(closes) - 1) / bt["trades"], 1) if bt["trades"] else None,
                     "curve": [round(x, 4) for x in bt["curve"][::max(1, len(bt["curve"]) // 200)]]}
     for key, r in out.items():
         if key != "buy_hold":

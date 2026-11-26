@@ -41,7 +41,8 @@ class Track:
             self.rows[k] = {"ticker": sig["ticker"], "side": sig["side"], "price": sig["price"],
                             "fair": sig["fair"], "edge": sig["edge"], "league": league, "kind": kind,
                             "bucket": edge_bucket(sig["edge"]), "title": sig.get("title", ""),
-                            "close_ts": close_ts, "logged": time.time(), "result": None}
+                            "close_ts": close_ts, "logged": time.time(), "result": None,
+                            "model_fair": sig.get("model_fair"), "mid": sig.get("mid")}
             self._save()
 
     def grade(self, public, clv_for=None, max_calls: int = 25):

@@ -21,14 +21,18 @@ from zoneinfo import ZoneInfo
 from .config import SETTINGS
 from .core import blocklist
 from .crypto.desk import CryptoDesk
-from .sports import learn, segments
+from .autotrack import AutoTrack
+from .budget import FAVOURITE, allocate
+from .sports import calibrate, learn, segments
 from .sports.leagues import SERIES_TO_LEAGUE
 from .sports.slate import Slate
 from .venue.public import PublicClient
 
 log = logging.getLogger("kil.publish")
 EQUITY = float(os.environ.get("KIL_BANKROLL", "100"))      # sizing bankroll for Kelly stakes
-MAX_TRADE = float(os.environ.get("KIL_MAX_TRADE", "5"))
+MAX_TRADE = float(os.environ.get("KIL_MAX_TRADE", "3"))       # per bet
+BUDGET = float(os.environ.get("KIL_BUDGET", "25"))            # total open risk for one slate
+VERSION = os.environ.get("GITHUB_SHA", "local")[:7]
 MIN_EDGE = float(os.environ.get("KIL_MIN_EDGE", "0.03"))
 MAX_EDGE = float(os.environ.get("KIL_MAX_EDGE", "0.15"))   # bigger gaps are far likelier model error than mispricing
 DAYS_AHEAD = int(os.environ.get("KIL_DAYS_AHEAD", "6"))   # today + 6 = the "This week" view
@@ -87,15 +91,33 @@ def _learn_if_due(slate: Slate, data_dir: Path, tz: ZoneInfo) -> dict | None:
     res = learn.nightly(slate.espn, data_dir, local.date(), slate.leagues)
     picks = [{"league": r["league"], "kind": r["kind"], "edge": r["edge"], "price": r["price"],
               "won": r["result"] == "W", "ts": r["logged"]}
-             for r in slate.track.rows.values() if r["result"] is not None]
+             for r in (slate.track.rows.values() if slate.track else ()) if r["result"] is not None]
     try:
         picks += json.loads((data_dir / "bigvin_picks.json").read_text())
     except (OSError, ValueError):
         pass
     (data_dir / "segments.json").write_text(json.dumps(segments.build_table(picks), indent=1))
+    cal = calibrate_from_track(slate, data_dir)
     marker.write_text(local.date().isoformat())
+    (data_dir / "learn_status.json").write_text(json.dumps({"ts": time.time(), "date": local.date().isoformat()}))
     slate._ratings.clear()
-    return {"promoted": [r["league"] for r in res if r.get("promoted")]}
+    return {"promoted": [r["league"] for r in res if r.get("promoted")], "calibration": cal}
+
+
+def _graded(slate: Slate) -> list[dict]:
+    return [{"fair": r["fair"], "price": r["price"], "won": r["result"] == "W", "ts": r["logged"],
+             "model_fair": r.get("model_fair"), "mid": r.get("mid")}
+            for r in (slate.track.rows.values() if slate.track else ()) if r["result"] is not None]
+
+
+def calibrate_from_track(slate: Slate, data_dir: Path) -> dict:
+    """Nightly: refit how much to trust the model vs the Kalshi price from our own graded picks."""
+    path = data_dir / "calibration.json"
+    old = calibrate.load(path)
+    res = calibrate.fit(_graded(slate), float(old.get("w", calibrate.DEFAULT_W)))
+    hist = (old.get("history") or [])[-60:] + [{k: v for k, v in res.items() if k != "history"}]
+    path.write_text(json.dumps({**res, "history": hist}, indent=1))
+    return res
 
 
 def build(public, data_dir: Path, tz_name: str = SETTINGS.timezone) -> dict:
@@ -119,15 +141,35 @@ def build(public, data_dir: Path, tz_name: str = SETTINGS.timezone) -> dict:
     picks = _one_per_game(picks)
     games = [g for g in sports["games"] if _allowed({"title": g["name"]})]
     picks = _enrich(picks, games)
+    picks = allocate(picks, EQUITY, BUDGET, MAX_TRADE, FAVOURITE)   # same default slate as the dashboard
+    auto = AutoTrack(data_dir / "autotrack.json", EQUITY, BUDGET, MAX_TRADE)
+    try:
+        mids = {c["ticker"]: (c["yes_bid"] + c["yes_ask"]) / 2 for g in games for c in g.get("contracts", [])
+                if c.get("yes_bid") and c.get("yes_ask")}
+        mids.update({r["ticker"]: (r["yes_bid"] + r["yes_ask"]) / 2 for v in cry["products"].values()
+                     for r in v["kalshi"] if r.get("yes_bid") and r.get("yes_ask")})
+        auto.mark(mids)
+        auto.grade(public)
+        auto.enter(picks, VERSION)
+        auto.save()
+    except Exception as e:  # the paper tracker must never blank the dashboard
+        errors.append(f"autotrack: {e}")
     lg = learn.load(data_dir / "learn_log.json")
+    status = learn.load(data_dir / "learn_status.json")
+    cal = calibrate.load(data_dir / "calibration.json")
     return {
         "generated": datetime.now(timezone.utc).isoformat(), "build_seconds": round(time.time() - t0, 1),
-        "mode": "RECOMMEND-ONLY", "bankroll": EQUITY, "kelly_fraction": segments.KELLY_FRACTION, "max_trade": MAX_TRADE, "min_edge": MIN_EDGE, "max_edge": MAX_EDGE,
+        "mode": "RECOMMEND-ONLY", "bankroll": EQUITY, "budget": BUDGET, "version": VERSION, "kelly_fraction": segments.KELLY_FRACTION, "max_trade": MAX_TRADE, "min_edge": MIN_EDGE, "max_edge": MAX_EDGE,
         "picks": picks, "suspect": suspect, "games": games, "track": sports.get("track", {}),
         "crypto": {k: {kk: v[kk] for kk in ("spot", "vol_annual", "rsi14", "sma50", "sma200", "chart",
                                              "strategies", "kalshi")} for k, v in cry["products"].items()},
         "learn": {"params": learn.load(data_dir / "model_params.json"),
-                  "log": (lg if isinstance(lg, list) else [])[-14:], "ran_now": learned},
+                  "log": (lg if isinstance(lg, list) else [])[-14:], "ran_now": learned,
+                  "last_ts": status.get("ts"), "w_market": calibrate.weight(data_dir / "calibration.json"),
+                  "calibration": {k: cal.get(k) for k in ("n", "w", "promoted", "reason", "challenger",
+                                                          "champion_logloss", "challenger_logloss", "ts")},
+                  "deciles": calibrate.deciles(_graded(slate))},
+        "autotrack": auto.summary(),
         "ratings_n": sports.get("ratings_n", {}),
         "errors": errors + sports.get("errors", []) + cry.get("errors", []),
     }

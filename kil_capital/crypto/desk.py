@@ -99,7 +99,11 @@ class CryptoDesk:
                                         "edge": round(b["edge"], 4), "fair": round(b["fair"], 4),
                                         "strategy_id": STRATEGY_ID, "count": r["count"], "stake": r["stake"],
                                         "confidence": "B" if r["hours"] <= 24 else "C",
-                                        "title": f"{prod.split('-')[0]} {r['sub'] or r['title']} {b['side'].upper()}"})
+                                        "title": f"{prod.split('-')[0]} {r['sub'] or r['title']} {b['side'].upper()}",
+                                        "close": r["close"], "hours": r["hours"], "spot": spot, "product": prod,
+                                        "floor": r["floor"], "cap": r["cap"], "strike_type": r["strike_type"],
+                                        "sub": r["sub"], "mid": None if not (r["yes_bid"] and r["yes_ask"]) else
+                                        ((r["yes_bid"] + r["yes_ask"]) / 2 if b["side"] == "yes" else 1 - (r["yes_bid"] + r["yes_ask"]) / 2)})
                 products[prod] = {
                     "spot": spot, "vol_hourly": vol_h, "vol_annual": vol_h * math.sqrt(24 * 365), "rsi14": rsi14,
                     "sma50": I.sma(closes, 50)[-1], "sma200": I.sma(closes, 200)[-1],

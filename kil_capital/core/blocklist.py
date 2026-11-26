@@ -1,4 +1,4 @@
-"""Hard Mississippi State blocklist (spec v4 §2.4).
+"""Market blocklist (spec v4 §2.4).  Currently EMPTY: the Mississippi State block was lifted 2026-11-26.
 
 There is deliberately NO setting, env var, flag or reload that turns this off.  The term
 lists are module-level tuples (immutable) and `is_enabled()` always returns True.
@@ -12,34 +12,11 @@ import re
 from dataclasses import dataclass, field
 from typing import Iterable, Mapping
 
-REASON = "BLOCKLIST_MSU"
+REASON = "BLOCKLIST"
 
-ALWAYS_BLOCKED: tuple[str, ...] = (
-    "mississippi state",
-    "mississippi st",
-    "miss st",
-    "miss. st",
-    "miss. state",
-    "miss state",
-    "ms state",
-    "msst",
-    "starkville",
-    "hail state",
-    "egg bowl",
-    "davis wade",
-    "davis-wade",
-    "dudy noble",
-)
-
-# Context words that make a bare "MSU" mean Mississippi State.
-MISSISSIPPI_CONTEXT: tuple[str, ...] = (
-    "mississippi",
-    "starkville",
-    "ole miss",
-    "msu bulldogs",
-    "bulldogs",  # "MSU Bulldogs" is the classic signal; Michigan State are Spartans, Missouri State Bears
-    "cowbell",
-)
+# Carson lifted the Mississippi State block on 2026-11-26 (he is not connected to any NCAA athletics
+# program).  The machinery stays so a team or term can be blocked again by adding it here.
+ALWAYS_BLOCKED: tuple[str, ...] = ()
 
 # Fields matched on markets / events / series (§2.4).
 TEXT_FIELDS: tuple[str, ...] = (
@@ -54,7 +31,7 @@ _norm_re = re.compile(r"[^a-z0-9]+")
 _msu_re = re.compile(r"\bmsu\b")
 # Ticker codes concatenate team codes (e.g. ...-26NOV28MSSTOLE), so match MSST as a raw
 # substring.  [VERIFY] Kalshi's team code for Mississippi State on each league's series.
-_TICKER_CODES = ("MSST", "MISSST")
+_TICKER_CODES: tuple[str, ...] = ()
 
 
 def _norm(s: str) -> str:
@@ -98,14 +75,6 @@ def check_text(text: str) -> Verdict:
     for code in _TICKER_CODES:
         if code in up:
             return Verdict(True, REASON, code)
-    if _msu_re.search(n):
-        if any(_norm(c) in n for c in MISSISSIPPI_CONTEXT):
-            return Verdict(True, REASON, "MSU (Mississippi context)")
-        if "michigan" in n or "spartan" in n or "missouri" in n or "bears" in n:
-            return Verdict(False)  # Michigan State / Missouri State: allowed
-        # Bare "MSU" with no context at all: ambiguous -> block and log (over-block bias).
-        review_log.add(raw, "MSU (ambiguous)")
-        return Verdict(True, REASON, "MSU (ambiguous)", ambiguous=True)
     return Verdict(False)
 
 

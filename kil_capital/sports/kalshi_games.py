@@ -7,7 +7,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from ..venue.public import _dollars, _ts
-from .leagues import LEAGUES
+from .leagues import LEAGUES, TEAM_TOTAL
 
 ET = ZoneInfo("America/New_York")
 _MON = {m: i for i, m in enumerate("JAN FEB MAR APR MAY JUN JUL AUG SEP OCT NOV DEC".split(), 1)}
@@ -109,9 +109,26 @@ def attach(league_key: str, games: list[dict], markets_by_kind: dict) -> dict:
                 else:
                     continue
             out.setdefault(gid, {"winner": [], "spread": [], "total": []})[kind].append(row)
+    for q in markets_by_kind.get("team_total", []):
+        gid = suffix_to_game.get(event_suffix(q["event"]))
+        if not gid or q["strike"] is None:
+            continue
+        team = team_of(q["sub"] or q["title"], gmap[gid])
+        if team:
+            out[gid].setdefault("team_total", []).append({**q, "kind": "team_total", "line": float(q["strike"]), "team": team})
     return out
+
+
+def team_of(text: str, g: dict) -> str | None:
+    """'Chicago over 20.5 points scored' -> 'away' when Chicago is the away team."""
+    head = re.split(r" over | under | scores| total|:", text or "", maxsplit=1)[0]
+    hits = [side for side in ("home", "away") if name_hits(head, g[side])]
+    return hits[0] if len(hits) == 1 else None
 
 
 def all_markets(public, league_key: str) -> dict:
     lg = LEAGUES[league_key]
-    return {kind: fetch_series(public, s) for kind, s in zip(("winner", "spread", "total"), lg.series)}
+    out = {kind: fetch_series(public, s) for kind, s in zip(("winner", "spread", "total"), lg.series)}
+    if league_key in TEAM_TOTAL:
+        out["team_total"] = fetch_series(public, TEAM_TOTAL[league_key])
+    return out

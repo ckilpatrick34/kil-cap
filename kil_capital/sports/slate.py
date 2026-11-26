@@ -18,6 +18,7 @@ from zoneinfo import ZoneInfo
 
 from . import learn
 from . import model as M
+from . import calibrate as CAL
 from . import segments as SEG
 from .espn import Espn
 from .kalshi_games import all_markets, attach
@@ -28,7 +29,8 @@ from .weather import Weather
 
 LONGSHOT = 0.15
 PRO = {"nfl", "nba", "nhl"}          # sharpest markets: demand more edge (Big Vin small edges = noise)
-KIND_EXTRA = {"winner": 0.0, "spread": 0.01, "total": 0.01}
+KIND_EXTRA = {"winner": 0.0, "spread": 0.01, "total": 0.01, "team_total": 0.01}
+WATCH_ONLY = {"team_total"}     # shown on the board, never a pick, until tested
 STRATEGY_ID = "game_model"
 
 
@@ -60,35 +62,43 @@ def price_contract(lg, c: dict, mean_model: dict, mean_blend: dict, book: dict) 
             if c["team"] == "home":
                 return M.p_cover(mean["margin"], c["line"], lg.sigma_margin)
             return M.p_cover(-mean["margin"], c["line"], lg.sigma_margin)
+        if c["kind"] == "team_total":     # team points = (total +/- margin) / 2, scores treated as independent
+            pts = (mean["total"] + (mean["margin"] if c["team"] == "home" else -mean["margin"])) / 2
+            return M.p_over(pts, c["line"], (lg.sigma_total ** 2 + lg.sigma_margin ** 2) ** 0.5 / 2)
         return M.p_over(mean["total"], c["line"], lg.sigma_total)
     book_mean = {k: book[k] for k in ("margin", "total") if k in book}
     pb = None
     if c["kind"] == "winner" and "p_home" in book:
         pb = book["p_home"] if c["team"] == "home" else 1 - book["p_home"]
-    elif (c["kind"] == "total" and "total" in book) or (c["kind"] != "total" and "margin" in book):
+    elif c["kind"] == "team_total" and "total" in book and "margin" in book:
+        pb = p_of(book_mean)
+    elif (c["kind"] == "total" and "total" in book) or (c["kind"] in ("winner", "spread") and "margin" in book):
         pb = p_of(book_mean)
     return {"model": p_of(mean_model), "book": pb, "fair": p_of(mean_blend)}
 
 
-def best_side(c: dict, probs: dict, min_edge: float) -> dict | None:
-    q, qm, qb = probs["fair"], probs["model"], probs["book"]
-    if q is None:
+def best_side(c: dict, probs: dict, min_edge: float, w_mkt: float = 1.0) -> dict | None:
+    """Best side to buy.  w_mkt < 1 pulls our fair price toward the Kalshi mid (see calibrate.py)."""
+    q0, qm, qb = probs["fair"], probs["model"], probs["book"]
+    if q0 is None:
         return None
+    mid = (c["yes_bid"] + c["yes_ask"]) / 2 if c["yes_bid"] and c["yes_ask"] else None
+    q = CAL.blend(q0, mid, w_mkt)
     cands = []
     if c["yes_ask"]:
-        cands.append(("yes", c["yes_ask"], q, qm, qb))
+        cands.append(("yes", c["yes_ask"], q, qm, qb, q0, mid))
     if c["yes_bid"]:
         cands.append(("no", round(1 - c["yes_bid"], 2), 1 - q, 1 - qm if qm is not None else None,
-                      1 - qb if qb is not None else None))
+                      1 - qb if qb is not None else None, 1 - q0, None if mid is None else 1 - mid))
     best = None
-    for side, price, fair, pm, pbk in cands:
+    for side, price, fair, pm, pbk, f0, m in cands:
         if not (0 < price < 1):
             continue
         edge = fair - price - taker_fee(price)
         if best is None or edge > best["edge"]:
             agree = None if pbk is None else (pm is not None and pm > price and pbk > price)
             best = {"side": side, "price": price, "fair": fair, "edge": edge, "book_agrees": agree,
-                    "model_p": pm, "book_p": pbk}
+                    "model_p": pm, "book_p": pbk, "model_fair": f0, "mid": m}
     return best
 
 
@@ -128,6 +138,7 @@ class Slate:
         today = datetime.now(self.tz).date()
         games_out, signals, errors, rn = [], [], [], {}
         params, seg = learn.load(self.params_path), SEG.load_table(self.segments_path)
+        w_mkt = CAL.weight(self.dir / "calibration.json")
         for key in self.leagues:
             lg, _lam = learn.effective(key, params)
             try:
@@ -138,7 +149,12 @@ class Slate:
                     upcoming += [g for g in self.espn.scoreboard(lg, today + timedelta(days=d)) if g["state"] != "post"]
                 if not upcoming:
                     continue
-                kal = attach(key, upcoming, all_markets(self.public, key))
+                mk = all_markets(self.public, key)
+                kal = attach(key, upcoming, mk)
+                n_tt = sum(len(v.get("team_total", [])) for v in kal.values())
+                if mk.get("team_total") and not n_tt:
+                    errors.append(f"{lg.name}: {len(mk['team_total'])} team-total markets on Kalshi, none matched to a game "
+                                  f"(sample: {mk['team_total'][0]['ticker']} / {mk['team_total'][0]['sub'] or mk['team_total'][0]['title']})")
             except Exception as e:  # one league failing must not blank the slate
                 errors.append(f"{lg.name}: {e}")
                 continue
@@ -155,10 +171,10 @@ class Slate:
                 book = M.book_view(lg, g["odds"])
                 mean_b = M.blend(lg, proj, book)
                 rows = []
-                for kind in ("winner", "spread", "total"):
-                    for c in contracts[kind]:
+                for kind in ("winner", "spread", "total", "team_total"):
+                    for c in contracts.get(kind, []):
                         probs = price_contract(lg, c, proj, mean_b, book)
-                        bs = best_side(c, probs, min_edge)
+                        bs = best_side(c, probs, min_edge, w_mkt)
                         width = (c["yes_ask"] - c["yes_bid"]) if c["yes_ask"] and c["yes_bid"] else None
                         row = {**c, "p_model": probs["model"], "p_book": probs["book"], "p_fair": probs["fair"],
                                "best": bs}
@@ -168,7 +184,7 @@ class Slate:
                             bs["edge"] -= bs["fair_raw"] - bs["fair"]
                             need = min_edge + KIND_EXTRA[kind] + (0.01 if key in PRO else 0)
                             started = g["state"] != "pre"
-                            ok = (not started and bs["edge"] >= need and bs["price"] >= LONGSHOT
+                            ok = (kind not in WATCH_ONLY and not started and bs["edge"] >= need and bs["price"] >= LONGSHOT
                                   and bs["price"] <= 0.92 and bs["book_agrees"] is not False)
                             conf = grade(bs["book_agrees"], proj["games_played"], width, c["volume"])
                             sk = SEG.key(key, kind, bs["edge"], bs["price"])
@@ -186,7 +202,8 @@ class Slate:
                                     "stake": stake, "roi": sz["roi"], "exp_profit": sz["exp_profit"],
                                     "segment": sk, "segment_mult": mult, "league": lg.name, "game_id": g["id"],
                                     "title": f"{g['name']}: {self.label(g, c)} {bs['side'].upper()}",
-                                    "start": g["start"]})
+                                    "start": g["start"], "model_fair": round(bs["model_fair"], 4),
+                                    "mid": None if bs["mid"] is None else round(bs["mid"], 4)})
                                 self.track.record(signals[-1], key, kind, c.get("close_ts"))
                         rows.append(row)
                 games_out.append({
@@ -214,6 +231,8 @@ class Slate:
             return f"{g[c['team']]['abbr']} to win"
         if c["kind"] == "spread":
             return f"{g[c['team']]['abbr']} wins by {c['line']:g}+"
+        if c["kind"] == "team_total":
+            return f"{g[c['team']]['abbr']} over {c['line']:g} pts"
         return f"Total over {c['line']:g}"
 
     # ---------- closing line value ----------
