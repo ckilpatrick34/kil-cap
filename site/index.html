@@ -71,11 +71,11 @@
         <table class="blotter" id="blotter">
           <thead><tr>
             <th class="c" title="Add to parlay">+</th><th>#</th><th>Pick</th><th class="r">Price</th><th class="r">Win chance</th><th class="r">Edge</th>
-            <th class="c">Conf</th><th class="r">Stake</th><th class="r">Exp. profit</th><th class="r">Starts</th>
+            <th class="c" title="High/Medium clear every check. Lean and Low are our call for the game, below the bar.">Confidence</th><th class="r">Stake</th><th class="r">Exp. profit</th><th class="r">Starts</th>
           </tr></thead>
           <tbody></tbody>
         </table>
-        <p class="empty" id="noPicks" hidden>No bet matches these filters right now.</p>
+        <p class="empty" id="noPicks" hidden>No game matches these filters right now.</p>
       </div>
     </div>
 
@@ -92,8 +92,10 @@
         <div id="slatePlan"></div>
       </details>
       <div class="panel">
-        <div class="phead"><h2>Parlay builder</h2><button class="link" id="pSuggest">Suggest best</button></div>
+        <div class="phead"><h2>Parlay builder</h2><button class="link" id="pSuggest">Load the top one</button></div>
         <div id="parlay" class="parlay"></div>
+        <div class="phead"><h2>Ready-made parlays</h2></div>
+        <div id="pIdeas" class="ideas"></div>
       </div>
       <div class="panel">
         <div class="phead"><h2>Exposure by league</h2></div>

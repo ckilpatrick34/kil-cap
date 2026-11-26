@@ -188,16 +188,69 @@ const SORTS = {
     b.exp_profit - a.exp_profit ||
     b.full.exp_profit - a.full.exp_profit,
   win: (a, b) => b.fair - a.fair,
-  edge: (a, b) => b.edge - a.edge,
+  edge: (a, b) => (b.edge ?? -1) - (a.edge ?? -1),
   start: (a, b) => ((a.start || "9") < (b.start || "9") ? -1 : 1),
 };
 // "Rank, then time": on-slate bets first, then by start time
 SORTS.ranktime = (a, b) => b.slate - a.slate || SORTS.start(a, b);
 function picks() {
-  return plan()
-    .filter(matches)
-    .sort(SORTS[F.sort] || SORTS.profit);
+  const ps = plan().filter(matches),
+    seen = new Set(ps.map((p) => p.game_id).filter(Boolean));
+  const cs = gameCalls().filter((c) => !seen.has(c.game_id) && callMatches(c));
+  return ps.concat(cs).sort(SORTS[F.sort] || SORTS.profit);
 }
+// Every game gets a pick: the best side we can find (or, once a game has started, our pre-game winner),
+// with a confidence level. These calls never enter plan(), the budget or the Autotracker.
+function callFor(g) {
+  const teams = ["away", "home"].map((s) => ({
+    name: g[s]?.name, abbr: g[s]?.abbr, nick: g[s]?.nick, rank: g[s]?.rank, conf: g[s]?.conf,
+  }));
+  const base = { desk: "sports", league: g.league, game_id: g.id, start: g.start, teams, call: true,
+    slate: false, count: 0, stake: 0, exp_profit: 0, full: { exp_profit: 0 }, segment_mult: 1 };
+  if (g.state !== "pre") {
+    const w = (g.contracts || []).find((c) => c.kind === "winner" && c.p_fair != null);
+    if (!w) return null;
+    const yes = w.p_fair >= 0.5;
+    return { ...base, ticker: w.ticker, kind: "winner", side: yes ? "yes" : "no", price: null,
+      fair: yes ? w.p_fair : 1 - w.p_fair, edge: null, roi: null, confidence: w.confidence || "C",
+      level: "live", title: `${g.name}: ${betLabel(g, w)} ${yes ? "YES" : "NO"}` };
+  }
+  const rs = ["winner", "spread", "total"]
+    .map((k) => boardRow(g, k, new Set()))
+    .filter((r) => r && r.b.price >= 0.1 && r.b.price <= 0.92);
+  if (!rs.length) return null;
+  const r = rs.reduce((a, b) => (b.b.edge > a.b.edge ? b : a)),
+    cost = r.b.price + fee(r.b.price);
+  return { ...base, ticker: r.c.ticker, kind: r.c.kind, side: r.b.side, price: r.b.price, fair: r.b.fair,
+    edge: r.b.edge, roi: cost > 0 ? (r.b.fair - cost) / cost : null, confidence: r.c.confidence || "C",
+    level: r.b.edge > 0 ? "lean" : "low", title: `${g.name}: ${betLabel(g, r.c)} ${r.b.side.toUpperCase()}` };
+}
+function gameCalls() {
+  return (S?.games || []).filter((g) => g.state !== "post").map(callFor).filter(Boolean);
+}
+function callMatches(c) {
+  const win = F.win;
+  F.win = false; // win-majority only gates bets that clear the bar; every game still gets a call
+  try { return matches(c); } finally { F.win = win; }
+}
+// All rows the page can show, so a click or a parlay leg finds a call as well as a bet.
+function allRows() {
+  const ps = plan(), seen = new Set(ps.map((p) => p.ticker));
+  return ps.concat(gameCalls().filter((c) => !seen.has(c.ticker)));
+}
+const LV = { high: "High", medium: "Medium", lean: "Lean", low: "Low", live: "Live" };
+function level(p) {
+  if (p.call) return p.level;
+  if (p.slate) return p.confidence === "C" ? "medium" : "high";
+  return p.edge > 0 ? "lean" : "low";
+}
+const LV_WHY = {
+  high: "Clears every check, and the data behind it is solid.",
+  medium: "Clears every check, but thin data or a wide Kalshi spread makes it less certain.",
+  lean: "Our model likes this side a little, but not enough to clear the bar after Kalshi's fee.",
+  low: "Our best side for this game, but there is no edge after Kalshi's fee. Treat it as a coin-flip-level call.",
+  live: "Game in progress. This is our pre-game winner call; Kalshi's live price already reflects the score.",
+};
 
 async function pullLive() {
   const tickers = [...new Set((S?.picks || []).map((p) => p.ticker))];
@@ -290,6 +343,7 @@ function render() {
   renderTrack();
   renderAuto();
   renderLearn();
+  window.renderLive?.(); // live.js: in-game model (Live tab)
   const errs = S.errors || [];
   $("#errors").hidden = !errs.length;
   $("#errors").textContent = errs.length
@@ -309,7 +363,7 @@ const ctl = {
 };
 const DEF = { ...F };
 
-const VIEWS = ["board", "results", "crypto", "ledger", "learn", "how"];
+const VIEWS = ["board", "live", "results", "crypto", "ledger", "learn", "how"];
 let TAB = "board";
 function loadUrl() {
   const u = new URLSearchParams(location.search);
@@ -398,6 +452,7 @@ function update() {
   renderCryptoBets();
   renderBoard();
   renderTop5();
+  window.renderLive?.();
 }
 
 let qTimer;
@@ -457,8 +512,9 @@ function renderKpis() {
     on = all.filter((p) => p.slate); // slate KPIs match "Your slate", not the table filters
   const ev = on.reduce((a, p) => a + p.exp_profit, 0),
     stake = on.reduce((a, p) => a + p.stake, 0);
-  const avgEdge = ps.length
-    ? ps.reduce((a, p) => a + p.edge, 0) / ps.length
+  const ed = ps.filter((p) => p.edge != null);
+  const avgEdge = ed.length
+    ? ed.reduce((a, p) => a + p.edge, 0) / ed.length
     : null;
   const t = S.track?.total || {},
     roiTrack = trackRoi();
@@ -538,15 +594,15 @@ function renderPicks(flash = false) {
         )
         .join(" @ ");
       return `<tr tabindex="0" data-t="${esc(p.ticker)}" class="${cls}${p.slate ? "" : " watch"}">
-      <td class="c">${p.game_id ? `<input type="checkbox" data-leg="${esc(p.ticker)}" ${legs.has(p.ticker) ? "checked" : ""} aria-label="Add to parlay">` : ""}</td>
+      <td class="c">${p.game_id && p.price != null ? `<input type="checkbox" data-leg="${esc(p.ticker)}" ${legs.has(p.ticker) ? "checked" : ""} aria-label="Add to parlay">` : ""}</td>
       <td class="rank">${i + 1}</td>
       <td class="pick"><b><span class="tag">${esc(p.desk === "crypto" ? "CRYPTO" : p.league)}</span>${esc(p.title)}</b>
-        <small>${tm ? tm + " · " : ""}${p.desk === "crypto" ? esc(cryptoAction(p)) : `Buy <span class="side-${p.side}">${p.side.toUpperCase()}</span>`} · ${p.slate ? `${p.count} contracts` : "watch only"} · ROI ${pct(p.roi, 1, true)}</small></td>
-      <td class="r">${cents(p.price)}${p.live ? "" : '<small class="muted"> snap</small>'}</td>
+        <small>${tm ? tm + " · " : ""}${p.desk === "crypto" ? esc(cryptoAction(p)) : `Buy <span class="side-${p.side}">${p.side.toUpperCase()}</span>`} · ${p.slate ? `${p.count} contracts` : p.call ? "our call, below the bar" : "watch only"}${p.roi != null ? ` · ROI ${pct(p.roi, 1, true)}` : ""}</small></td>
+      <td class="r">${cents(p.price)}${p.live || p.price == null ? "" : '<small class="muted"> snap</small>'}</td>
       <td class="r ${p.fair >= WIN_MIN ? "pos" : ""}">${pct(p.fair, 0)}</td>
-      <td class="r ${p.edge > 0 ? "pos" : "neg"}">${pct(p.edge, 1, true)}</td>
-      <td class="c"><span class="grade ${esc(p.confidence)}" title="Confidence ${esc(p.confidence)}">${esc(p.confidence)}</span></td>
-      <td class="r">${p.slate ? usd(p.stake, 2) : '<span class="muted">watch</span>'}</td>
+      <td class="r ${p.edge == null ? "muted" : p.edge > 0 ? "pos" : "neg"}">${pct(p.edge, 1, true)}</td>
+      <td class="c"><span class="lvl ${level(p)}" title="${esc(LV_WHY[level(p)])} Data grade ${esc(p.confidence)}.">${LV[level(p)]}</span></td>
+      <td class="r">${p.slate ? usd(p.stake, 2) : `<span class="muted">${p.call ? "your call" : "watch"}</span>`}</td>
       <td class="r ${p.exp_profit > 0 ? "pos" : ""}">${p.slate ? usd(p.exp_profit, 2) : "–"}</td>
       <td class="r">${startsIn(p.start || p.close)}</td></tr>`;
     })
@@ -569,7 +625,8 @@ $("#blotter").addEventListener("keydown", (e) => {
 });
 
 function openPick(ticker) {
-  const p = plan().find((x) => x.ticker === ticker);
+  const p = allRows().find((x) => x.ticker === ticker);
+  if (!p) return;
   const g = (S.games || []).find((x) => x.id === p.game_id);
   const m = g?.model || {};
   const notes = [
@@ -587,7 +644,7 @@ function openPick(ticker) {
       <div><span>Buy</span><b class="side-${p.side}">${p.side.toUpperCase()} @ ${cents(p.price)}</b></div>
       <div><span>Our fair price</span><b>${cents(p.fair)}</b></div>
       <div><span>Edge after fee</span><b class="${p.edge > 0 ? "pos" : "neg"}">${pct(p.edge, 1, true)}</b></div>
-      <div><span>Confidence</span><b>${esc(p.confidence)}</b></div>
+      <div><span>Confidence</span><b>${LV[level(p)]} <small class="muted">(data ${esc(p.confidence)})</small></b></div>
       <div><span>Stake</span><b>${p.slate ? usd(p.stake, 2) : "watch only"}</b></div>
       <div><span>Contracts</span><b>${p.count}</b></div>
       <div><span>ROI</span><b>${pct(p.roi, 1, true)}</b></div>
@@ -606,7 +663,9 @@ function openPick(ticker) {
       ${m.weather ? `<p class="small muted">Weather: ${esc(typeof m.weather === "string" ? m.weather : JSON.stringify(m.weather))}</p>` : ""}`
         : ""
     }
-    ${p.slate ? "" : `<p class="small muted">Not on your slate: your budget is already used by stronger picks, or the bet is too small to buy one contract.</p>`}
+    <p class="small">${esc(LV_WHY[level(p)])}</p>
+    ${p.slate || p.call ? "" : `<p class="small muted">Not on your slate: your budget is already used by stronger picks, the win chance is under 55%, or the bet is too small to buy one contract.</p>`}
+    ${p.call ? `<p class="small muted">Below the bar, so the model suggests no stake. If you bet it anyway, keep it to a small amount.</p>` : ""}
     <p class="small muted">Segment ${esc(p.segment || "–")} · sizing multiplier ${p.segment_mult ?? 1}×. ${p.live ? "Price is live from Kalshi." : "Price is from the latest refresh, a few minutes old at most."}</p>`;
   $("#drawer").showModal();
 }
@@ -615,7 +674,7 @@ function openPick(ticker) {
 // Legs must be from different games (same-game legs are correlated, so multiplying them would overstate the
 // chance). Kalshi prices combos on request, so the page cannot read a live combo price: it gives the most
 // you should accept instead, keeping a 2¢ cushion after the fee.
-const pick = (t) => plan().find((p) => p.ticker === t);
+const pick = (t) => allRows().find((p) => p.ticker === t);
 function toggleLeg(t, on) {
   const p = pick(t);
   if (on && [...legs].some((x) => pick(x)?.game_id === p?.game_id)) {
@@ -643,30 +702,75 @@ function maxPrice(fair, cushion = 0.02) {
   return null;
 }
 
-function suggest() {
-  const pool = (S?.picks || [])
-    .map(reprice)
-    .filter(
-      (p) =>
-        p.desk === "sports" && inWindow(p) && p.fair >= WIN_MIN && p.edge > 0,
-    )
-    .sort((a, b) => b.fair / b.price - a.fair / a.price);
-  const out = [],
-    seen = new Set();
-  for (const p of pool) {
-    if (!seen.has(p.game_id)) {
-      seen.add(p.game_id);
-      out.push(p.ticker);
-    }
-    if (out.length === 2) break;
+// Ready-made parlays: at least 5, built from every game's pick (bets that clear the bar first, then our
+// calls), one leg per game. Ranked by the chance every leg wins, with fair-priced combos first.
+const LV_RANK = { high: 0, medium: 1, lean: 2, low: 3, live: 4 };
+const legScore = (p) => p.fair + 2 * (p.edge ?? 0) + (p.slate ? 0.05 : 0);
+let IDEAS = [];
+function parlayIdeas(want = 6) {
+  const byGame = new Map();
+  for (const p of allRows()) {
+    if (p.desk !== "sports" || !p.game_id || p.price == null || !inWindow(p)) continue;
+    if (F.league && p.league !== F.league) continue;
+    const cur = byGame.get(p.game_id);
+    if (!cur || legScore(p) > legScore(cur)) byGame.set(p.game_id, p);
   }
+  const pool = [...byGame.values()].sort((a, b) => legScore(b) - legScore(a)).slice(0, 12);
+  const combos = [];
+  for (let i = 0; i < pool.length; i++)
+    for (let j = i + 1; j < pool.length; j++) {
+      combos.push([pool[i], pool[j]]);
+      for (let k = j + 1; k < pool.length; k++) combos.push([pool[i], pool[j], pool[k]]);
+    }
+  const rated = combos
+    .map((ls) => {
+      const win = ls.reduce((a, p) => a * p.fair, 1),
+        mkt = ls.reduce((a, p) => a * p.price, 1),
+        lv = ls.map(level).sort((a, b) => LV_RANK[b] - LV_RANK[a])[0];
+      return { ls, win, mkt, lv, fairPriced: win >= mkt, mx: maxPrice(win) };
+    })
+    .sort((a, b) => b.fairPriced - a.fairPriced || b.win - a.win);
+  // variety: a leg goes in at most two ideas, unless that leaves fewer than `want`
+  const out = [],
+    used = new Map();
+  for (const cap of [2, Infinity])
+    for (const x of rated) {
+      if (out.length >= want) break;
+      if (out.includes(x) || x.ls.some((p) => (used.get(p.ticker) || 0) >= cap)) continue;
+      out.push(x);
+      x.ls.forEach((p) => used.set(p.ticker, (used.get(p.ticker) || 0) + 1));
+    }
+  return out;
+}
+function renderIdeas() {
+  IDEAS = S ? parlayIdeas() : [];
+  $("#pIdeas").innerHTML = IDEAS.length
+    ? IDEAS.map(
+        (x, i) => `<button class="idea" data-i="${i}">
+      <span class="ih"><b>Parlay ${i + 1} · ${x.ls.length} legs</b><span class="lvl ${x.lv}" title="${esc(LV_WHY[x.lv])}">${LV[x.lv]}</span></span>
+      ${x.ls.map((p) => `<span class="il">${esc(p.title)} <span class="muted">${p.side.toUpperCase()} ${cents(p.price)} · ${pct(p.fair, 0)}</span></span>`).join("")}
+      <span class="in"><span><small>All win</small>${pct(x.win, 0)}</span><span><small>Legs singly</small>${cents(x.mkt)}</span><span><small>Accept at most</small>${x.mx ? cents(x.mx) : "skip"}</span></span>
+    </button>`,
+      ).join("") +
+      `<p class="small muted" style="margin:0">Confidence is the weakest leg's. Tap one to load it above. Parlays multiply risk: keep stakes small.</p>`
+    : `<p class="muted small" style="margin:0">Fewer than two games with Kalshi prices in this window. Try a wider day or another sport.</p>`;
+}
+function suggest() {
+  const x = parlayIdeas(1)[0];
   legs.clear();
-  out.forEach((t) => legs.add(t));
-  note =
-    out.length < 2 ? "Not enough strong legs in this window for a parlay." : "";
+  (x?.ls || []).forEach((p) => legs.add(p.ticker));
+  note = x ? "" : "Fewer than two games with Kalshi prices in this window.";
   renderPicks();
   renderParlay();
 }
+$("#pIdeas").addEventListener("click", (e) => {
+  const x = IDEAS[e.target.closest(".idea")?.dataset.i];
+  if (!x) return;
+  legs.clear();
+  x.ls.forEach((p) => legs.add(p.ticker));
+  renderPicks();
+  renderParlay();
+});
 $("#pSuggest").addEventListener("click", suggest);
 $("#parlay").addEventListener("click", (e) => {
   const t = e.target.dataset?.rm;
@@ -678,12 +782,13 @@ $("#parlay").addEventListener("click", (e) => {
 });
 
 function renderParlay() {
+  renderIdeas();
   const ls = [...legs].map(pick).filter(Boolean);
   if (ls.length !== legs.size)
     for (const t of [...legs]) if (!pick(t)) legs.delete(t); // a leg dropped off the board
   if (!ls.length) {
     $("#parlay").innerHTML =
-      `<p class="muted small" style="margin:0">${esc(note) || "Tick 2 or 3 bets from different games, or press Suggest best."}</p>`;
+      `<p class="muted small" style="margin:0">${esc(note) || "Tick 2 or 3 bets from different games, or tap a ready-made parlay below."}</p>`;
     return;
   }
   const win = ls.reduce((a, p) => a * p.fair, 1),
