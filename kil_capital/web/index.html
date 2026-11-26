@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kil Capital</title>
+<link rel="stylesheet" href="/static/v3.css">
+<script>window.KIL_TOKEN = "__KIL_TOKEN__";</script>
+</head>
+<body>
+<header class="top">
+  <div class="brand">Kil Capital</div>
+  <nav class="tabs" id="tabs">
+    <button data-tab="games" class="on">Games</button>
+    <button data-tab="crypto">Crypto</button>
+    <button data-tab="book">Paper book</button>
+    <button data-tab="record">Track record</button>
+  </nav>
+  <div class="top-right">
+    <span class="pill safe" title="No real orders can be placed from this screen">Paper only</span>
+    <div class="kpi"><span>Balance</span><b id="k-equity">—</b></div>
+    <div class="kpi"><span>P&amp;L</span><b id="k-pnl">—</b></div>
+    <div class="kpi"><span>Avg CLV</span><b id="k-clv">—</b></div>
+  </div>
+</header>
+
+<div class="bar">
+  <div class="auto">
+    <label class="switch"><input type="checkbox" id="auto-on"><span></span></label>
+    <div><b id="auto-label">Autopilot off</b><div class="muted small">Paper money only. Buys the top picks below within your limits.</div></div>
+    <div class="auto-fields">
+      <label>Min edge ¢ <input id="auto-edge" type="number" min="1" max="30" step="1"></label>
+      <label>Max per trade $ <input id="auto-trade" type="number" min="1" step="1"></label>
+      <label>Max at risk $ <input id="auto-total" type="number" min="1" step="1"></label>
+      <button id="auto-save" class="ghost">Save limits</button>
+    </div>
+  </div>
+  <div class="feed"><i class="dot" id="feed-dot"></i><span id="feed-txt">Loading…</span>
+    <button id="refresh" class="ghost">Refresh now</button></div>
+</div>
+
+<main>
+  <!-- GAMES -->
+  <section id="tab-games" class="tab on">
+    <div class="card">
+      <div class="card-head">
+        <div><h2>Trade now</h2>
+          <p class="muted">Picks where our price beats Kalshi after fees and the sportsbook agrees. A is the strongest grade.</p></div>
+        <div class="seg" id="lg-filter"></div>
+      </div>
+      <div id="picks"></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div><h2>Today's slate</h2>
+        <p class="muted">Every game with a Kalshi market. Click a game for winner, spread and total prices.</p></div></div>
+      <div id="games"></div>
+    </div>
+  </section>
+
+  <!-- CRYPTO -->
+  <section id="tab-crypto" class="tab">
+    <div class="grid2" id="crypto-head"></div>
+    <div class="card">
+      <div class="card-head"><div><h2>Kalshi crypto picks</h2>
+        <p class="muted">Price-range contracts priced from live volatility with fat tails. Edge is after Kalshi's fee.</p></div></div>
+      <div id="crypto-picks"></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div><h2>Swing strategies, tested honestly</h2>
+        <p class="muted">Tuned on the first 60% of history, judged only on the last 40%. "Luck" is the chance a random strategy does as well. Keep means it beat buy-and-hold out of sample and wasn't luck.</p></div>
+        <div class="seg" id="coin-filter"></div></div>
+      <div id="strategies"></div>
+    </div>
+  </section>
+
+  <!-- BOOK -->
+  <section id="tab-book" class="tab">
+    <div class="grid4" id="book-kpis"></div>
+    <div class="card"><div class="card-head"><h2>Open positions</h2>
+      <button id="reset" class="ghost danger">Reset paper book</button></div><div id="positions"></div></div>
+    <div class="card"><div class="card-head"><h2>Activity</h2></div><div id="log"></div></div>
+  </section>
+
+  <!-- RECORD -->
+  <section id="tab-record" class="tab">
+    <div class="grid4" id="rec-kpis"></div>
+    <div class="card">
+      <div class="card-head"><div><h2>Every pick, graded</h2>
+        <p class="muted">Each pick is logged the moment it appears and graded when Kalshi settles it. Once a group has results, its fair price is pulled toward what it actually hit.</p></div></div>
+      <div id="buckets"></div>
+    </div>
+  </section>
+</main>
+
+<div id="drawer" class="drawer"><div class="drawer-in"><button class="x" id="drawer-x">×</button><div id="drawer-body"></div></div></div>
+<div id="toast" class="toast"></div>
+<script src="/static/v3.js"></script>
+</body>
+</html>
