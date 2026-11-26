@@ -13,12 +13,17 @@
 </head>
 <body>
 <header class="top">
-  <div class="brand">
+  <a class="brand" href="?" aria-label="Kil Capital home">
     <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7"/><path d="M9 8v16M9 16l9-8M12.5 13l7.5 11"/></svg>
     <div><strong>KIL CAPITAL</strong><span>Terminal</span></div>
-  </div>
+  </a>
+  <nav class="tabs" id="tabs" aria-label="Pages">
+    <a href="?view=board" data-tab="board">Board</a><a href="?view=results" data-tab="results">Results</a>
+    <a href="?view=crypto" data-tab="crypto">Crypto</a><a href="?view=ledger" data-tab="ledger">Paper ledger</a>
+    <a href="?view=learn" data-tab="learn">Learning log <i class="dot" id="learnDot"></i></a><a href="?view=how" data-tab="how">How it works</a>
+  </nav>
   <div class="status">
-    <span class="badge mode">Recommend-only · no orders</span>
+    <span class="badge mode">Recommend-only</span>
     <span class="feed" id="feed" title="Price feed"><i></i><b id="feedLabel">Loading</b></span>
     <span class="muted" id="updated">–</span>
     <button class="icon" id="theme" aria-label="Toggle theme" title="Toggle theme">◐</button>
@@ -26,49 +31,42 @@
 </header>
 
 <main>
-  <nav class="tabs" id="tabs" role="tablist" aria-label="Sections">
-    <button role="tab" data-tab="picks">Picks</button><button role="tab" data-tab="crypto">Crypto</button>
-    <button role="tab" data-tab="auto">Autotracker</button><button role="tab" data-tab="learn">Learning <i class="dot" id="learnDot"></i></button>
-  </nav>
-
-  <div data-pane="picks">
-  <section class="kpis" id="kpis" aria-label="Summary"></section>
-
-  <section class="panel">
-    <div class="phead"><h2>Your slate</h2>
-      <form class="settings" id="settings" onsubmit="return false">
-        <label>Bankroll <span>$</span><input type="number" min="1" step="1" id="uBank"></label>
-        <label>Budget <span>$</span><input type="number" min="0" step="1" id="uBudget" title="Most you want riding at once"></label>
-        <label>Max bet <span>$</span><input type="number" min="1" step="0.5" id="uMax"></label>
-        <label>Already in open bets <span>$</span><input type="number" min="0" step="1" id="uOpen"></label>
-        <button class="link" id="uReset" type="button">Reset</button>
-      </form>
+  <div data-pane="board">
+  <section class="filterbar" aria-label="Filters">
+    <div class="chips" id="sports" role="group" aria-label="Sport"></div>
+    <div class="row2">
+      <div class="seg" id="when" role="group" aria-label="When">
+        <button data-w="today">Today</button><button data-w="tomorrow">Tomorrow</button><button data-w="weekend">This weekend</button><button data-w="week">This week</button>
+      </div>
+      <input type="search" id="q" placeholder="Search a team: Georgia, UGA, Bulldogs" aria-label="Search teams">
+      <select id="fSort" aria-label="Sort"><option value="profit">Overall rank</option><option value="start">Start time</option>
+        <option value="ranktime">Rank, then time</option><option value="edge">Raw edge</option><option value="win">Win chance</option></select>
+      <details class="more"><summary>More filters <span id="fCount"></span></summary>
+        <div class="toolbar">
+          <select id="fConf" aria-label="Conference"><option value="">All conferences</option></select>
+          <select id="fKind" aria-label="Bet type"><option value="">All bet types</option><option value="winner">Winner</option>
+            <option value="spread">Spread</option><option value="total">Total</option><option value="crypto">Crypto</option></select>
+          <select id="fGrade" aria-label="Grade"><option value="">Any grade</option><option value="A">A only</option><option value="AB">A or B</option></select>
+          <label class="chip"><input type="checkbox" id="fTop25"> Top 25</label>
+          <label class="chip"><input type="checkbox" id="fRvR"> Ranked vs ranked</label>
+          <label class="chip" title="Only bets the model gives at least a 55% chance to win, still profitable after fees"><input type="checkbox" id="fWin"> Win-majority (55%+)</label>
+          <button class="link" id="fClear">Clear all</button>
+        </div>
+      </details>
     </div>
-    <div id="slatePlan"></div>
   </section>
 
+  <section aria-label="Top 5">
+    <div class="sechead"><h2>Top 5</h2><a class="link" href="#picksPanel">All picks ↓</a></div>
+    <div class="top5" id="top5"></div>
+  </section>
+
+  <section class="kpis" id="kpis" aria-label="Summary"></section>
+
   <section class="grid">
-    <div class="panel picks">
-      <div class="phead">
-        <h2>Recommended bets <span class="count" id="pickCount"></span></h2>
-        <div class="seg" id="when" role="tablist" aria-label="Time window">
-          <button role="tab" data-w="today">Today</button><button role="tab" data-w="week">This week</button>
-        </div>
-      </div>
-      <div class="toolbar">
-        <input type="search" id="q" placeholder="Search a team: Georgia, UGA, Bulldogs" aria-label="Search teams">
-        <select id="fLeague" aria-label="League"><option value="">All leagues</option></select>
-        <select id="fConf" aria-label="Conference"><option value="">All conferences</option></select>
-        <select id="fKind" aria-label="Bet type"><option value="">All bet types</option><option value="winner">Winner</option>
-          <option value="spread">Spread</option><option value="total">Total</option><option value="crypto">Crypto</option></select>
-        <select id="fGrade" aria-label="Grade"><option value="">Any grade</option><option value="A">A only</option><option value="AB">A or B</option></select>
-        <label class="chip"><input type="checkbox" id="fTop25"> Top 25</label>
-        <label class="chip"><input type="checkbox" id="fRvR"> Ranked vs ranked</label>
-        <label class="chip" title="Only bets the model gives at least a 55% chance to win, still profitable after fees"><input type="checkbox" id="fWin"> Win-majority (55%+)</label>
-        <select id="fSort" aria-label="Sort"><option value="profit">Sort: expected profit</option><option value="win">Sort: win chance</option>
-          <option value="edge">Sort: edge</option><option value="start">Sort: start time</option></select>
-        <button class="link" id="fClear">Clear <span id="fCount"></span></button>
-      </div>
+    <div class="panel picks" id="picksPanel">
+      <div class="phead"><h2>Recommended bets <span class="count" id="pickCount"></span></h2>
+        <a class="link" href="#boardPanel">Every game ↓</a></div>
       <div class="tablewrap">
         <table class="blotter" id="blotter">
           <thead><tr>
@@ -82,6 +80,17 @@
     </div>
 
     <aside class="side">
+      <details class="panel" open>
+        <summary class="phead"><h2>Your slate</h2></summary>
+        <form class="settings" id="settings" onsubmit="return false">
+          <label>Bankroll <span>$</span><input type="number" min="1" step="1" id="uBank"></label>
+          <label>Budget <span>$</span><input type="number" min="0" step="1" id="uBudget" title="Most you want riding at once"></label>
+          <label>Max bet <span>$</span><input type="number" min="1" step="0.5" id="uMax"></label>
+          <label>In open bets <span>$</span><input type="number" min="0" step="1" id="uOpen"></label>
+          <button class="link" id="uReset" type="button">Reset</button>
+        </form>
+        <div id="slatePlan"></div>
+      </details>
       <div class="panel">
         <div class="phead"><h2>Parlay builder</h2><button class="link" id="pSuggest">Suggest best</button></div>
         <div id="parlay" class="parlay"></div>
@@ -90,29 +99,27 @@
         <div class="phead"><h2>Exposure by league</h2></div>
         <div id="exposure" class="bars"></div>
       </div>
-      <div class="panel">
-        <div class="phead"><h2>Model health</h2></div>
-        <div id="health"></div>
-      </div>
     </aside>
   </section>
 
-  <section class="panel">
-    <div class="phead"><h2>Every game <span class="count" id="boardCount"></span></h2><span class="muted small">Our call on every game and the best side of each market, even with no edge. Follows the time window, league and search above.</span></div>
+  <section class="panel" id="boardPanel">
+    <div class="phead"><h2>Every game <span class="count" id="boardCount"></span></h2><span class="muted small">Our call on every game and the best side of each market, even with no edge. Follows the sport, day and search above.</span></div>
     <div class="tablewrap"><table id="board"><thead><tr><th>Game</th><th>Best side</th><th class="r">Our chance</th><th class="r" title="Sportsbook chance with the vig removed">Vegas</th>
       <th class="r">Kalshi bid / ask</th><th class="r" title="Our fair price for the side shown">Fair</th><th class="r">Edge</th><th class="r" title="Average profit or loss if you bet $10 at this price, after Kalshi's fee">Per $10</th><th>Our call</th></tr></thead><tbody></tbody></table></div>
-    <p class="small muted pad">Every number shows for every market, even with no edge. BET: passes every check and is on your slate (click for the ticket). No bet: no edge after Kalshi's fee, an edge too small to clear the bar, or our model and Vegas disagree. Per $10 is the average result of betting the side shown anyway. No-bet rows never count toward your budget or the Autotracker.</p>
+    <p class="small muted pad">BET: passes every check and is on your slate (click for the ticket). No bet: no edge after Kalshi's fee, an edge too small to clear the bar, or our model and Vegas disagree. Per $10 is the average result of betting the side shown anyway. No-bet rows never count toward your budget or the Autotracker.</p>
   </section>
 
-  <section class="panel">
-    <div class="phead"><h2>Game slate</h2><span class="muted small">Our projected margin and total vs the sportsbook line</span></div>
+  <details class="panel">
+    <summary class="phead"><h2>Game slate: our margin and total vs the book</h2></summary>
     <div class="tablewrap"><table class="slate" id="slate"><thead><tr>
       <th>Game</th><th>League</th><th class="r">Starts</th><th class="r">Model margin</th><th class="r">Book margin</th>
       <th class="r">Model total</th><th class="r">Book total</th><th>Notes</th></tr></thead><tbody></tbody></table></div>
-  </section>
+  </details>
+  </div>
 
+  <div data-pane="results" hidden>
   <section class="panel">
-    <div class="phead"><h2>Track record</h2><span class="muted small">Every pick is logged at the price we'd have paid, then graded on settlement</span></div>
+    <div class="phead"><h2>Track record</h2><span class="muted small">Every pick is logged at the price we'd have paid, then graded on settlement. Records are kept per sport.</span></div>
     <div id="track"></div>
   </section>
   </div>
@@ -135,7 +142,7 @@
     </section>
   </div>
 
-  <div data-pane="auto" hidden>
+  <div data-pane="ledger" hidden>
     <section class="panel"><div class="phead"><h2>Autotracker</h2><span class="badge">Paper only · no real orders</span></div>
       <div id="auto"></div></section>
   </div>
@@ -143,6 +150,21 @@
   <div data-pane="learn" hidden>
     <section class="panel"><div class="phead"><h2>Learning</h2><span class="muted small">Nightly, from settled results only</span></div>
       <div id="learn"></div></section>
+    <section class="panel"><div class="phead"><h2>Model health</h2></div><div id="health"></div></section>
+  </div>
+
+  <div data-pane="how" hidden>
+    <section class="panel prose">
+      <div class="phead"><h2>How it works</h2></div>
+      <div class="pad">
+        <p><b>Our own model.</b> Opponent-adjusted team ratings for every league, refit on each run from completed games, blended with the sportsbook line. That gives a fair chance for every Kalshi winner, spread and total market.</p>
+        <p><b>Edge.</b> Fair chance minus what the contract costs you, after Kalshi's taker fee (7% × price × (1 − price)). Edges over 15% are held out, because they are almost always bad data rather than value.</p>
+        <p><b>Ranking and stakes.</b> Overall rank is expected profit. Stakes are quarter-Kelly on your bankroll, capped by your max bet and your budget, one bet per game. Win-majority (55%+) is on by default.</p>
+        <p><b>Every game gets a call.</b> If a game has no bet, the board says why: no edge after the fee, edge too small, or our model and Vegas disagree.</p>
+        <p><b>Learning.</b> Each night, after 4 AM Central, a challenger model is tested on games it never saw. It replaces the champion only if it predicts better. Results are graded against the price we would have paid.</p>
+        <p><b>Recommend-only.</b> This site cannot place orders and holds no keys. Research and paper results only, not financial advice.</p>
+      </div>
+    </section>
   </div>
 
   <p class="errors" id="errors" hidden></p>

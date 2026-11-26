@@ -143,6 +143,14 @@ function inWindow(p) {
   const t = Date.parse(p.start),
     now = Date.now();
   if (F.w === "today") return t < now || ymd(t) === ymd(now); // started counts as today
+  if (F.w === "tomorrow") return ymd(t) === ymd(now + 864e5);
+  if (F.w === "weekend") {
+    // this Fri-Sun in Central time; on Fri-Sun that includes games already started today
+    const dow = new Date(now).toLocaleDateString("en-US", { timeZone: TZ, weekday: "short" });
+    const toSun = { Mon: 6, Tue: 5, Wed: 4, Thu: 3, Fri: 2, Sat: 1, Sun: 0 }[dow];
+    const days = new Set([0, 1, 2].map((d) => ymd(now + (toSun - d) * 864e5)));
+    return days.has(ymd(t)) && (t > now - 6 * 36e5 || ymd(t) === ymd(now));
+  }
   return t < now + 7 * 864e5;
 }
 
@@ -183,6 +191,8 @@ const SORTS = {
   edge: (a, b) => b.edge - a.edge,
   start: (a, b) => ((a.start || "9") < (b.start || "9") ? -1 : 1),
 };
+// "Rank, then time": on-slate bets first, then by start time
+SORTS.ranktime = (a, b) => b.slate - a.slate || SORTS.start(a, b);
 function picks() {
   return plan()
     .filter(matches)
@@ -275,6 +285,7 @@ function render() {
   renderCryptoBets();
   renderHealth();
   renderBoard();
+  renderTop5();
   renderSlate();
   renderTrack();
   renderAuto();
@@ -288,7 +299,6 @@ function render() {
 
 const ctl = {
   q: "#q",
-  league: "#fLeague",
   conf: "#fConf",
   kind: "#fKind",
   grade: "#fGrade",
@@ -299,17 +309,25 @@ const ctl = {
 };
 const DEF = { ...F };
 
+const VIEWS = ["board", "results", "crypto", "ledger", "learn", "how"];
+let TAB = "board";
 function loadUrl() {
   const u = new URLSearchParams(location.search);
+  const v = { picks: "board", auto: "ledger" }[u.get("view")] || u.get("view");
+  TAB = VIEWS.includes(v) ? v : "board";
+  Object.assign(F, DEF);
   for (const k of Object.keys(F))
     if (u.has(k))
       F[k] = typeof DEF[k] === "boolean" ? u.get(k) === "1" : u.get(k);
 }
-function saveUrl() {
+function saveUrl(push = false) {
   const u = new URLSearchParams();
+  if (TAB !== "board") u.set("view", TAB);
   for (const [k, v] of Object.entries(F))
     if (v !== DEF[k]) u.set(k, typeof v === "boolean" ? (v ? "1" : "0") : v);
-  history.replaceState(null, "", u.toString() ? "?" + u : location.pathname);
+  const url = u.toString() ? "?" + u : location.pathname;
+  if (push) history.pushState(null, "", url);
+  else history.replaceState(null, "", url);
 }
 
 function options(sel, vals, all) {
@@ -323,13 +341,23 @@ function options(sel, vals, all) {
 
 function renderFilters() {
   const ps = S.picks || [];
-  options(
-    "#fLeague",
-    [
-      ...new Set(ps.map((p) => (p.desk === "crypto" ? "Crypto" : p.league))),
-    ].sort(),
-    "All leagues",
-  );
+  // sport chips: every league with a pick or a game, in a fixed order
+  const ORDER = ["NFL", "CFB", "NBA", "CBB", "NHL", "MLB", "WNBA"];
+  const lg = [
+    ...new Set([
+      ...ps.map((p) => (p.desk === "crypto" ? "Crypto" : p.league)),
+      ...(S.games || []).map((g) => g.league),
+    ]),
+  ]
+    .filter(Boolean)
+    .sort((a, b) => (ORDER.indexOf(a) + 1 || 99) - (ORDER.indexOf(b) + 1 || 99) || (a < b ? -1 : 1));
+  if (F.league && !lg.includes(F.league)) lg.push(F.league);
+  $("#sports").innerHTML = ["", ...lg]
+    .map(
+      (l) =>
+        `<button data-l="${esc(l)}" aria-pressed="${F.league === l}">${l ? esc(l) : "All sports"}</button>`,
+    )
+    .join("");
   options(
     "#fConf",
     [
@@ -345,9 +373,9 @@ function renderFilters() {
     else el.value = F[k];
   }
   for (const b of document.querySelectorAll("#when button"))
-    b.setAttribute("aria-selected", b.dataset.w === F.w);
+    b.setAttribute("aria-pressed", b.dataset.w === F.w);
   const n = Object.keys(F).filter(
-    (k) => k !== "w" && k !== "sort" && F[k] !== DEF[k],
+    (k) => !["w", "sort", "q", "league"].includes(k) && F[k] !== DEF[k],
   ).length;
   $("#fCount").textContent = n ? `(${n})` : "";
 }
@@ -369,6 +397,7 @@ function update() {
   renderParlay();
   renderCryptoBets();
   renderBoard();
+  renderTop5();
 }
 
 let qTimer;
@@ -386,8 +415,39 @@ $("#when").addEventListener("click", (e) => {
   }
 });
 $("#fClear").addEventListener("click", () => {
-  Object.assign(F, DEF, { w: F.w });
+  Object.assign(F, DEF, { w: F.w, league: F.league, q: F.q, sort: F.sort });
   update();
+});
+$("#sports").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-l]");
+  if (b) {
+    F.league = b.dataset.l;
+    update();
+  }
+});
+
+// ---------- Top 5 ----------
+function renderTop5() {
+  if (!S) return;
+  const ps = picks()
+    .filter((p) => p.slate)
+    .slice(0, 5);
+  $("#top5").innerHTML = ps.length
+    ? ps
+        .map(
+          (p, i) => `<button class="card" data-t="${esc(p.ticker)}">
+      <span class="cardtop"><span class="tag">${esc(p.desk === "crypto" ? "CRYPTO" : p.league)}</span><span class="muted small">#${i + 1} · ${startsIn(p.start || p.close)}</span></span>
+      <b>${esc(p.title)}</b>
+      <span class="small">${p.desk === "crypto" ? esc(cryptoAction(p)) : `Buy <span class="side-${p.side}">${p.side.toUpperCase()}</span> at ${cents(p.price)}`}</span>
+      <span class="cardnums"><span><small>Win</small>${pct(p.fair, 0)}</span><span><small>Edge</small><i class="pos">${pct(p.edge, 1, true)}</i></span><span><small>Stake</small>${usd(p.stake, 2)}</span></span>
+    </button>`,
+        )
+        .join("")
+    : `<p class="empty">No bet clears the bar for this sport and day. Every game below still has our call.</p>`;
+}
+$("#top5").addEventListener("click", (e) => {
+  const c = e.target.closest("[data-t]");
+  if (c) openPick(c.dataset.t);
 });
 
 function renderKpis() {
@@ -1230,25 +1290,26 @@ function renderLearn() {
 }
 
 // ---------- tabs ----------
-let TAB = "picks";
-try {
-  TAB = sessionStorage.getItem("kil-tab") || "picks";
-} catch {}
-function showTab(t) {
-  TAB = t;
-  for (const b of document.querySelectorAll("#tabs button"))
-    b.setAttribute("aria-selected", b.dataset.tab === t);
+function showTab(t, push = false) {
+  TAB = VIEWS.includes(t) ? t : "board";
+  for (const a of document.querySelectorAll("#tabs a"))
+    a.toggleAttribute("aria-current", a.dataset.tab === TAB);
   for (const d of document.querySelectorAll("[data-pane]"))
-    d.hidden = d.dataset.pane !== t;
-  try {
-    sessionStorage.setItem("kil-tab", t);
-  } catch {}
+    d.hidden = d.dataset.pane !== TAB;
+  saveUrl(push);
 }
 $("#tabs").addEventListener("click", (e) => {
-  const b = e.target.closest("button[data-tab]");
-  if (b) showTab(b.dataset.tab);
+  const a = e.target.closest("a[data-tab]");
+  if (!a || e.metaKey || e.ctrlKey || e.shiftKey) return; // let new-tab clicks through
+  e.preventDefault();
+  showTab(a.dataset.tab, true);
+  scrollTo(0, 0);
 });
-showTab(TAB);
+addEventListener("popstate", () => {
+  loadUrl();
+  showTab(TAB);
+  if (S) update();
+});
 
 // ---------- theme ----------
 (function theme() {
@@ -1269,6 +1330,7 @@ showTab(TAB);
 })();
 
 loadUrl();
+showTab(TAB);
 pullState();
 setInterval(pullState, STATE_EVERY);
 setInterval(() => {
@@ -1278,3 +1340,7 @@ setInterval(() => {
     renderCryptoBets();
   }
 }, 30e3); // keep countdowns fresh
+// keep the sticky filter bar right under the header, whatever height the header wraps to
+new ResizeObserver(([e]) =>
+  document.documentElement.style.setProperty("--hdr", e.target.offsetHeight + "px"),
+).observe($(".top"));
