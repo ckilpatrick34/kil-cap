@@ -59,10 +59,10 @@ def test_longshot_report_has_every_required_item():
     assert "Walk-forward" in md and "go-live bar" in md
 
 
-def test_msu_markets_never_traded():
+def test_msu_markets_allowed_since_block_lifted():
     ms = synth(400, msu_every=3)
     rep = run_backtest(LongshotFade(), ms, SimConfig(bootstrap_n=100), _robust=False)
-    assert rep["universe_markets"] < 400
+    assert rep["universe_markets"] == 400
 
 
 def test_no_data_and_no_trades():
