@@ -28,6 +28,7 @@ log = logging.getLogger("kil.publish")
 EQUITY = float(os.environ.get("KIL_BANKROLL", "1000"))     # sizing bankroll for Kelly stakes
 MAX_TRADE = float(os.environ.get("KIL_MAX_TRADE", "50"))
 MIN_EDGE = float(os.environ.get("KIL_MIN_EDGE", "0.03"))
+MAX_EDGE = float(os.environ.get("KIL_MAX_EDGE", "0.15"))   # bigger gaps are far likelier model error than mispricing
 
 
 def _allowed(s: dict) -> bool:
@@ -71,12 +72,14 @@ def build(public, data_dir: Path, tz_name: str = SETTINGS.timezone) -> dict:
             [{**s, "desk": "crypto", "exp_profit": round(s["count"] * (s["fair"] - s["price"]), 2)}
              for s in cry["signals"]]
     picks = sorted(filter(_allowed, picks), key=lambda s: -s.get("exp_profit", 0))
+    suspect = [p for p in picks if p["edge"] > MAX_EDGE]   # kept visible for review, never recommended
+    picks = [p for p in picks if p["edge"] <= MAX_EDGE]
     games = [g for g in sports["games"] if _allowed({"title": g["name"]})]
     lg = learn.load(data_dir / "learn_log.json")
     return {
         "generated": datetime.now(timezone.utc).isoformat(), "build_seconds": round(time.time() - t0, 1),
-        "mode": "RECOMMEND-ONLY", "bankroll": EQUITY, "kelly_fraction": segments.KELLY_FRACTION, "max_trade": MAX_TRADE, "min_edge": MIN_EDGE,
-        "picks": picks, "games": games, "track": sports.get("track", {}),
+        "mode": "RECOMMEND-ONLY", "bankroll": EQUITY, "kelly_fraction": segments.KELLY_FRACTION, "max_trade": MAX_TRADE, "min_edge": MIN_EDGE, "max_edge": MAX_EDGE,
+        "picks": picks, "suspect": suspect, "games": games, "track": sports.get("track", {}),
         "crypto": {k: {kk: v[kk] for kk in ("spot", "vol_annual", "rsi14", "sma50", "sma200", "chart",
                                              "strategies", "kalshi")} for k, v in cry["products"].items()},
         "learn": {"params": learn.load(data_dir / "model_params.json"),

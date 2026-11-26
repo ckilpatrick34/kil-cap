@@ -106,7 +106,7 @@ function renderKpis() {
   const t = S.track?.total || {}, roiTrack = trackRoi();
   const promoted = (S.learn?.log || []).filter((r) => r.promoted).length;
   const k = [
-    ["Live picks", ps.length, `${ps.filter((p) => p.confidence === "A").length} grade A`],
+    ["Live picks", ps.length, `${ps.filter((p) => p.confidence === "A").length} grade A` + ((S.suspect || []).length ? ` · ${S.suspect.length} held out (edge > ${pct(S.max_edge, 0)})` : "")],
     ["Expected profit", usd(ev, 2), "sum across picks"],
     ["Capital at work", usd(stake, 0), `${pct(stake / S.bankroll, 0)} of bankroll`],
     ["Avg edge after fee", pct(avgEdge, 1), "fair minus cost"],
