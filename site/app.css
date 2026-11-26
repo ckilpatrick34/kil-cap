@@ -122,3 +122,33 @@ td input[type=checkbox]{accent-color:var(--accent);width:15px;height:15px;cursor
 .parlay .big b{font-family:var(--mono);font-size:16px}
 @media (max-width:1100px){.grid{grid-template-columns:1fr}.side{grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}.kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media (max-width:640px){.top{padding:10px 16px}main{padding:16px}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.status .muted{display:none}#drawerBody .facts{grid-template-columns:repeat(2,minmax(0,1fr))}}
+/* tabs, slate settings, autotracker, learning */
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:0 0 14px;overflow-x:auto}
+.tabs button{font:inherit;font-size:14px;font-weight:500;padding:8px 14px;border:0;border-bottom:2px solid transparent;background:none;color:var(--muted);cursor:pointer;white-space:nowrap}
+.tabs button[aria-selected="true"]{color:var(--text);border-bottom-color:var(--text)}
+.tabs .dot{margin:0 0 0 6px;vertical-align:middle}
+.dot.bad{background:var(--neg)}
+#settings{display:flex;flex-wrap:wrap;gap:10px 16px;padding:4px 16px 10px;align-items:end}
+#settings label{display:grid;gap:3px;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+#settings input{font:inherit;font-family:var(--mono);font-size:14px;width:92px;padding:5px 8px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--text)}
+#settings button{font:inherit;font-size:13px;padding:5px 12px;border:1px solid var(--line);border-radius:6px;background:none;color:var(--muted);cursor:pointer}
+tr.watch td{opacity:.55}
+.pad{padding:0 16px 12px}
+.sub{font-size:13px;font-weight:600;margin:14px 16px 6px}
+.warnbox{margin:8px 16px;padding:8px 12px;border-radius:6px;border:1px solid var(--neg);color:var(--neg);font-size:13px}
+.health .warnbox{margin:0}
+svg.curve{display:block;width:calc(100% - 32px);height:120px;margin:0 16px 8px}
+svg.curve path{fill:none;stroke:var(--pos);stroke-width:2;vector-effect:non-scaling-stroke}
+svg.curve .base{stroke:var(--faint);stroke-dasharray:4 4;vector-effect:non-scaling-stroke}
+svg.cal{display:block;width:100%;max-width:320px;margin:0 16px}
+svg.cal .diag{stroke:var(--faint);stroke-dasharray:4 4}
+svg.cal circle{fill:var(--pos);fill-opacity:.7}
+svg.cal text{font-size:10px;fill:var(--muted)}
+@media (max-width:600px){#settings input{width:76px}.trackhead{gap:16px}}
+.st{font-size:11px;font-weight:600;padding:2px 7px;border-radius:999px;white-space:nowrap}
+.st.pick{background:var(--accent-bg);color:var(--pos)}
+.st.lean{background:var(--line2);color:var(--warn)}
+.st.pass{background:var(--line2);color:var(--faint)}
+#board td:first-child{white-space:normal;min-width:160px}
+#board tr.gstart td{border-top:1px solid var(--line)}
+#board tr.pick{cursor:pointer}

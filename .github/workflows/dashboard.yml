@@ -75,12 +75,19 @@ jobs:
           path: site
       - id: deploy
         uses: actions/deploy-pages@v4
+        continue-on-error: true       # a one-off Pages hiccup must not freeze the dashboard
+      - name: Retry deploy once
+        if: steps.deploy.outcome == 'failure'
+        run: sleep 20
+      - id: deploy2
+        if: steps.deploy.outcome == 'failure'
+        uses: actions/deploy-pages@v4
 
-      # Continuous refresh: queue the next run as soon as this one deploys. The concurrency group keeps at
+      # Continuous refresh: queue the next run even if this one failed, so one bad run never ends the loop. The concurrency group keeps at
       # most one run going and one waiting, so cron and push runs merge into the same loop.
       # Pause by setting repo variable KIL_LIVE=off.
       - name: Queue next refresh
-        if: success() && github.ref == 'refs/heads/main' && vars.KIL_LIVE != 'off'
+        if: ${{ !cancelled() && github.ref == 'refs/heads/main' && vars.KIL_LIVE != 'off' }}
         run: gh workflow run dashboard.yml --ref main -R "$GITHUB_REPOSITORY"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

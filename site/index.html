@@ -26,7 +26,26 @@
 </header>
 
 <main>
+  <nav class="tabs" id="tabs" role="tablist" aria-label="Sections">
+    <button role="tab" data-tab="picks">Picks</button><button role="tab" data-tab="crypto">Crypto</button>
+    <button role="tab" data-tab="auto">Autotracker</button><button role="tab" data-tab="learn">Learning <i class="dot" id="learnDot"></i></button>
+  </nav>
+
+  <div data-pane="picks">
   <section class="kpis" id="kpis" aria-label="Summary"></section>
+
+  <section class="panel">
+    <div class="phead"><h2>Your slate</h2>
+      <form class="settings" id="settings" onsubmit="return false">
+        <label>Bankroll <span>$</span><input type="number" min="1" step="1" id="uBank"></label>
+        <label>Budget <span>$</span><input type="number" min="0" step="1" id="uBudget" title="Most you want riding at once"></label>
+        <label>Max bet <span>$</span><input type="number" min="1" step="0.5" id="uMax"></label>
+        <label>Already in open bets <span>$</span><input type="number" min="0" step="1" id="uOpen"></label>
+        <button class="link" id="uReset" type="button">Reset</button>
+      </form>
+    </div>
+    <div id="slatePlan"></div>
+  </section>
 
   <section class="grid">
     <div class="panel picks">
@@ -72,14 +91,17 @@
         <div id="exposure" class="bars"></div>
       </div>
       <div class="panel">
-        <div class="phead"><h2>Crypto desk</h2></div>
-        <div id="crypto"></div>
-      </div>
-      <div class="panel">
         <div class="phead"><h2>Model health</h2></div>
         <div id="health"></div>
       </div>
     </aside>
+  </section>
+
+  <section class="panel">
+    <div class="phead"><h2>Every game <span class="count" id="boardCount"></span></h2><span class="muted small">Our call on every game and the best side of each market, even with no edge. Follows the time window, league and search above.</span></div>
+    <div class="tablewrap"><table id="board"><thead><tr><th>Game</th><th>Best side</th><th class="r">Our chance</th><th class="r" title="Sportsbook chance with the vig removed">Vegas</th>
+      <th class="r">Kalshi bid / ask</th><th class="r" title="Our fair price for the side shown">Fair</th><th class="r">Edge</th><th class="r" title="Average profit or loss if you bet $10 at this price, after Kalshi's fee">Per $10</th><th>Our call</th></tr></thead><tbody></tbody></table></div>
+    <p class="small muted pad">Every number shows for every market, even with no edge. BET: passes every check and is on your slate (click for the ticket). No bet: no edge after Kalshi's fee, an edge too small to clear the bar, or our model and Vegas disagree. Per $10 is the average result of betting the side shown anyway. No-bet rows never count toward your budget or the Autotracker.</p>
   </section>
 
   <section class="panel">
@@ -93,9 +115,38 @@
     <div class="phead"><h2>Track record</h2><span class="muted small">Every pick is logged at the price we'd have paid, then graded on settlement</span></div>
     <div id="track"></div>
   </section>
+  </div>
+
+  <div data-pane="crypto" hidden>
+    <section class="panel">
+      <div class="phead"><h2>Crypto bets</h2>
+        <div class="seg" id="cWhen" role="tablist" aria-label="Settles">
+          <button role="tab" data-c="hour">Next hour</button><button role="tab" data-c="today">Today</button>
+          <button role="tab" data-c="tomorrow">Tomorrow</button><button role="tab" data-c="week">This week</button>
+        </div>
+      </div>
+      <div class="tablewrap"><table id="cTable"><thead><tr><th>What to do</th><th class="r">Spot vs strike</th>
+        <th class="r">Win chance</th><th class="r">Edge</th><th class="r">Stake</th><th class="r">Settles</th></tr></thead><tbody></tbody></table></div>
+      <p class="small muted pad">Fair value comes from the live Coinbase price and recent volatility. Kalshi settles on an averaged index at the close time, so a coin sitting right on the strike is close to a coin flip.</p>
+    </section>
+    <section class="panel">
+      <div class="phead"><h2>Trend lab</h2><span class="muted small">Daily rules, tested on years of history they never saw</span></div>
+      <div id="crypto" class="coins"></div>
+    </section>
+  </div>
+
+  <div data-pane="auto" hidden>
+    <section class="panel"><div class="phead"><h2>Autotracker</h2><span class="badge">Paper only · no real orders</span></div>
+      <div id="auto"></div></section>
+  </div>
+
+  <div data-pane="learn" hidden>
+    <section class="panel"><div class="phead"><h2>Learning</h2><span class="muted small">Nightly, from settled results only</span></div>
+      <div id="learn"></div></section>
+  </div>
 
   <p class="errors" id="errors" hidden></p>
-  <footer>Research and paper results only, not financial advice. Prices from Kalshi public market data; stakes are quarter-Kelly on a <span id="bankroll">$1,000</span> paper bankroll.</footer>
+  <footer>Research and paper results only, not financial advice. Prices from Kalshi public market data; stakes are quarter-Kelly on a <span id="bankroll">$100</span> bankroll, capped by your budget.</footer>
 </main>
 
 <dialog id="drawer"><div id="drawerBody"></div><form method="dialog"><button class="close" aria-label="Close">×</button></form></dialog>
