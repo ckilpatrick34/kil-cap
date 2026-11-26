@@ -32,3 +32,25 @@ def test_efficient_market_is_not_beaten():
     r = deep.run(_rows(), "x", first_test=2004)    # closing line = true expectation, so no real edge exists
     assert "gbm" not in r["markets"]["spread"]["promoted"]
     assert r["markets"]["spread"]["models"]["gbm"]["rmse_late"] >= r["markets"]["spread"]["market_rmse_late"] - 0.01
+
+
+def test_devig_removes_margin():
+    p = features.devig(-110, -110)
+    assert abs(p - 0.5) < 1e-9
+    assert features.devig(None, 120) is None
+
+
+def test_ml_bets_pays_real_odds():
+    import numpy as np
+    meta = [{"ml_h": 150.0, "ml_a": -170.0}, {"ml_h": 150.0, "ml_a": -170.0}]
+    win = np.array([1.0, 0.0])
+    p_hat = np.array([0.6, 0.6])                    # model likes the +150 home side in both games
+    b = deep.ml_bets(p_hat, meta, win, np.array([True, True]), 0.0)
+    assert b["n"] == 2 and b["wins"] == 1 and abs(b["roi"] - (1.5 - 1) / 2) < 1e-9
+
+
+def test_impossible_moneylines_rejected():
+    from kil_capital.research import sources
+    assert not sources._ml_ok(-145.0, -152.0)       # both favoured: 119% implied
+    assert not sources._ml_ok(-110.0, 125.0)        # under 100%: an arbitrage, so a bad row
+    assert sources._ml_ok(-110.0, -110.0)

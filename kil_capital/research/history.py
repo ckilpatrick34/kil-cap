@@ -50,7 +50,8 @@ def nflverse(raw_dir: Path, refresh: bool = False) -> list[dict]:
                     "rest_h": _f(g["home_rest"]), "rest_a": _f(g["away_rest"]),
                     "div": g["div_game"] == "1", "dome": g["roof"] in ("dome", "closed"),
                     "temp": _f(g["temp"]), "wind": _f(g["wind"]),
-                    "qb_h": g["home_qb_id"] or None, "qb_a": g["away_qb_id"] or None})
+                    "qb_h": g["home_qb_id"] or None, "qb_a": g["away_qb_id"] or None,
+                    "ml_h": _f(g.get("home_moneyline")), "ml_a": _f(g.get("away_moneyline"))})
     return sorted(out, key=lambda r: (r["ts"], r["id"]))
 
 
