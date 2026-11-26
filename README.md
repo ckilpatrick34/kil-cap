@@ -71,6 +71,20 @@ movement and confidence rank; the main reasons it loses; and the **60% win-rate 
 segments on the first 70% of picks and judges them on the last 30%, showing win rate **and** ROI, because a
 70% winner at 80¢ still loses money. A segment counts only if it holds 60%+ and is profitable out of sample.
 
+## Deep model: more data, judged on unseen seasons
+
+```
+python -m kil_capital.research.deep --league nfl
+```
+
+Downloads nflverse's public file of every NFL game since 1999 (closing spread and total, rest, roof,
+weather, starting QBs), compresses each team's history into point-in-time features (Elo, fast/slow
+form, points for/against, how often it beat the closing line, QB changes), and trains gradient-boosted
+and ridge models on the *market's error*. Each season is predicted by a model trained only on earlier
+seasons; bet thresholds are chosen on 2006-2015 and only reported on 2016 onward. A model is promoted
+only if it beats the closing line's error on those unseen seasons and is profitable at -110. Results:
+`reports/DEEP_NFL.md`, `data/deep_models.json`, and `GET /api/learn`.
+
 ## Backtests
 
 ```
@@ -87,7 +101,7 @@ python -m pytest
 
 Covers recommend-only (no order, kill or go-live routes, no venue), the MSU blocklist both ways, paper math and
 autopilot limits, the API security guards (token, host and origin checks), the hash-chained audit, fees, the
-models, the track record, the learning loop (no peeking, promotion only on unseen games), Kelly sizing and the
+models, the track record, the deep model (no leakage, no edge invented against an efficient market), the learning loop (no peeking, promotion only on unseen games), Kelly sizing and the
 segment table, and the Big Vin column mapping.
 
 ## Layout
@@ -105,6 +119,7 @@ kil_capital/
           segments.py     segment table, Kelly sizing, 60% search
   crypto/                 crypto desk and trend lab
   research/bigvin.py      Big Vin loss analysis and learning
+          history.py features.py deep.py   multi-season data, point-in-time features, walk-forward models
   strategies/ backtest/   research strategies and the backtester
   api/    app.py terminal.py   FastAPI app + background loops
   web/                    dashboard (no build step)

@@ -306,7 +306,11 @@ class Terminal:
         d = self.s.data_dir
         log_ = learn.load(d / "learn_log.json")
         return {"params": learn.load(d / "model_params.json"), "log": (log_ if isinstance(log_, list) else [])[-20:],
-                "segments": segments.load_table(d / "segments.json")}
+                "segments": segments.load_table(d / "segments.json"),
+                "deep": {k: {mk: {"promoted": v["promoted"], "market_rmse_late": v["market_rmse_late"],
+                                  "models": {n: m["unseen_window"] for n, m in v["models"].items()}}
+                             for mk, v in r.get("markets", {}).items()}
+                         for k, r in learn.load(d / "deep_models.json").items()}}
 
     def _model_loop(self):
         """Slow external data (ESPN, weather, candles) lives on its own thread so it never stalls fills sync."""
