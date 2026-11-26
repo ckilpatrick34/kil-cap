@@ -30,12 +30,32 @@ def american(x):
     return _f(s)
 
 
-def _team(c: dict) -> dict:
+# ESPN conference (group) ids -> short names, per league. Unknown ids show no conference rather than a wrong one.
+CONFERENCES = {
+    "cfb": {1: "ACC", 151: "American", 4: "Big 12", 5: "Big Ten", 12: "C-USA", 18: "Independent", 15: "MAC",
+            17: "Mountain West", 9: "Pac-12", 8: "SEC", 37: "Sun Belt"},
+    "cbb": {2: "ACC", 1: "America East", 62: "American", 3: "Atlantic 10", 4: "Big East", 5: "Big Sky",
+            6: "Big South", 7: "Big Ten", 8: "Big 12", 9: "Big West", 10: "CAA", 11: "C-USA", 45: "Horizon",
+            12: "Ivy", 13: "MAAC", 14: "MAC", 16: "MEAC", 18: "Missouri Valley", 44: "Mountain West", 19: "NEC",
+            20: "OVC", 21: "Pac-12", 22: "Patriot", 23: "SEC", 24: "SoCon", 25: "Southland", 26: "SWAC",
+            49: "Summit", 27: "Sun Belt", 29: "WCC", 30: "WAC", 46: "ASUN"},
+}
+
+
+def _team(c: dict, league: str = "") -> dict:
     t = c.get("team") or {}
     rec = next((r.get("summary") for r in c.get("records") or [] if r.get("type") == "total"), None)
+    rank = (c.get("curatedRank") or {}).get("current")
+    cid = t.get("conferenceId") or c.get("conferenceId")
+    try:
+        conf = CONFERENCES.get(league, {}).get(int(cid)) if cid is not None else None
+    except (TypeError, ValueError):
+        conf = None
     return {"id": str(t.get("id")), "name": t.get("displayName", ""), "loc": t.get("location", ""),
             "short": t.get("shortDisplayName", ""), "nick": t.get("name", ""), "abbr": t.get("abbreviation", ""),
-            "score": _f(c.get("score")), "record": rec, "logo": t.get("logo")}
+            "score": _f(c.get("score")), "record": rec, "logo": t.get("logo"),
+            "rank": rank if isinstance(rank, int) and 1 <= rank <= 25 else None,   # ESPN uses 99 for unranked
+            "conf": conf, "conf_id": str(cid) if cid is not None else None}
 
 
 def _odds(comp: dict) -> dict | None:
@@ -77,7 +97,7 @@ def parse_event(e: dict, league: str) -> dict | None:
     return {"id": str(e.get("id")), "league": league, "name": e.get("shortName") or e.get("name"),
             "start": start, "start_ts": ts, "state": st.get("state", "pre"), "detail": st.get("shortDetail"),
             "neutral": bool(comp.get("neutralSite")), "indoor": v.get("indoor"), "venue": v.get("fullName"),
-            "city": ad.get("city"), "region": ad.get("state"), "home": _team(home), "away": _team(away),
+            "city": ad.get("city"), "region": ad.get("state"), "home": _team(home, league), "away": _team(away, league),
             "odds": _odds(comp)}
 
 

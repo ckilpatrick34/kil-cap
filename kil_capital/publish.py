@@ -22,6 +22,7 @@ from .config import SETTINGS
 from .core import blocklist
 from .crypto.desk import CryptoDesk
 from .sports import learn, segments
+from .sports.leagues import SERIES_TO_LEAGUE
 from .sports.slate import Slate
 from .venue.public import PublicClient
 
@@ -30,6 +31,7 @@ EQUITY = float(os.environ.get("KIL_BANKROLL", "100"))      # sizing bankroll for
 MAX_TRADE = float(os.environ.get("KIL_MAX_TRADE", "5"))
 MIN_EDGE = float(os.environ.get("KIL_MIN_EDGE", "0.03"))
 MAX_EDGE = float(os.environ.get("KIL_MAX_EDGE", "0.15"))   # bigger gaps are far likelier model error than mispricing
+DAYS_AHEAD = int(os.environ.get("KIL_DAYS_AHEAD", "6"))   # today + 6 = the "This week" view
 
 
 def _finite(x):
@@ -41,6 +43,22 @@ def _finite(x):
     if isinstance(x, (list, tuple)):
         return [_finite(v) for v in x]
     return x
+
+
+KINDS = ("winner", "spread", "total")
+
+
+def _enrich(picks: list[dict], games: list[dict]) -> list[dict]:
+    """Copy each pick's teams (name, rank, conference) and market type onto it so the page filters without joins."""
+    gmap = {g["id"]: g for g in games}
+    out = []
+    for p in picks:
+        g = gmap.get(p.get("game_id"))
+        kind = KINDS[SERIES_TO_LEAGUE[p["ticker"].split("-")[0]][1]] if p["ticker"].split("-")[0] in SERIES_TO_LEAGUE \
+            else ("crypto" if p.get("desk") == "crypto" else None)
+        teams = [{k: (g.get(s) or {}).get(k) for k in ("name", "abbr", "nick", "rank", "conf")} for s in ("away", "home")] if g else []
+        out.append({**p, "kind": kind, "teams": teams})
+    return out
 
 
 def _one_per_game(picks: list[dict]) -> list[dict]:
@@ -90,7 +108,7 @@ def build(public, data_dir: Path, tz_name: str = SETTINGS.timezone) -> dict:
     except Exception as e:  # a bad learning night must never blank the dashboard
         errors.append(f"learn: {e}")
     t0 = time.time()
-    sports = slate.refresh(min_edge=MIN_EDGE, equity=EQUITY, max_trade=MAX_TRADE)
+    sports = slate.refresh(min_edge=MIN_EDGE, equity=EQUITY, max_trade=MAX_TRADE, days_ahead=DAYS_AHEAD)
     cry = crypto.refresh(min_edge=MIN_EDGE, equity=EQUITY, max_trade=MAX_TRADE)
     picks = [{**s, "desk": "sports"} for s in sports["signals"]] + \
             [{**s, "desk": "crypto", "exp_profit": round(s["count"] * (s["fair"] - s["price"]), 2)}
@@ -100,6 +118,7 @@ def build(public, data_dir: Path, tz_name: str = SETTINGS.timezone) -> dict:
     picks = [p for p in picks if p["edge"] <= MAX_EDGE]
     picks = _one_per_game(picks)
     games = [g for g in sports["games"] if _allowed({"title": g["name"]})]
+    picks = _enrich(picks, games)
     lg = learn.load(data_dir / "learn_log.json")
     return {
         "generated": datetime.now(timezone.utc).isoformat(), "build_seconds": round(time.time() - t0, 1),
