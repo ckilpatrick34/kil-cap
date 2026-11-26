@@ -1,0 +1,75 @@
+# Refreshes picks from public data and publishes the dashboard to GitHub Pages.
+# RECOMMEND-ONLY: no Kalshi account, no keys, no orders. Model state (track record, learned
+# parameters, ESPN cache) persists on the `state` branch between runs.
+name: dashboard
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"        # GitHub may delay scheduled runs by several minutes
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["site/**", "kil_capital/**", ".github/workflows/dashboard.yml"]
+
+permissions:
+  contents: write                 # push the state branch
+  pages: write
+  id-token: write
+
+concurrency:
+  group: dashboard
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore model state
+        run: |
+          if git ls-remote --exit-code --heads origin state >/dev/null; then
+            git fetch --depth=1 origin state
+            git worktree add data origin/state
+          else
+            mkdir -p data
+          fi
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Build picks
+        env:
+          KIL_DATA_DIR: ${{ github.workspace }}/data
+          KIL_BANKROLL: ${{ vars.KIL_BANKROLL || '1000' }}
+          KIL_MAX_TRADE: ${{ vars.KIL_MAX_TRADE || '50' }}
+        run: python -m kil_capital.publish --out site/data/state.json
+
+      - name: Save model state
+        if: always()
+        run: |
+          cd data
+          [ -e .git ] || git init -q -b state
+          git checkout -q -B state
+          git add -A
+          git -c user.name=kil-bot -c user.email=kil-bot@users.noreply.github.com commit -qm "state $(date -u +%FT%TZ)" || exit 0
+          # empty extraheader drops checkout's persisted auth header so the token URL is the only credential
+          git -c http.https://github.com/.extraheader= \
+            push -q --force "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:state
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deploy
+        uses: actions/deploy-pages@v4

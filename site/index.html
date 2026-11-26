@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Kil Capital Terminal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="app.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230b1220'/%3E%3Cpath d='M9 8v16M9 16l9-8M12.5 13l7.5 11' stroke='%2350e3c2' stroke-width='3' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7"/><path d="M9 8v16M9 16l9-8M12.5 13l7.5 11"/></svg>
+    <div><strong>KIL CAPITAL</strong><span>Terminal</span></div>
+  </div>
+  <div class="status">
+    <span class="badge mode">Recommend-only · no orders</span>
+    <span class="feed" id="feed" title="Price feed"><i></i><b id="feedLabel">Loading</b></span>
+    <span class="muted" id="updated">–</span>
+    <button class="icon" id="theme" aria-label="Toggle theme" title="Toggle theme">◐</button>
+  </div>
+</header>
+
+<main>
+  <section class="kpis" id="kpis" aria-label="Summary"></section>
+
+  <section class="grid">
+    <div class="panel picks">
+      <div class="phead">
+        <h2>Recommended bets <span class="count" id="pickCount"></span></h2>
+        <div class="filters" id="filters" role="tablist"></div>
+      </div>
+      <div class="tablewrap">
+        <table class="blotter" id="blotter">
+          <thead><tr>
+            <th>#</th><th>Pick</th><th class="r">Price</th><th class="r">Fair</th><th class="r">Edge</th>
+            <th class="c">Conf</th><th class="r">Stake</th><th class="r">Exp. profit</th><th class="r">Starts</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+        <p class="empty" id="noPicks" hidden>No bet clears the edge, confidence and sizing gates right now. That is the model doing its job.</p>
+      </div>
+    </div>
+
+    <aside class="side">
+      <div class="panel">
+        <div class="phead"><h2>Exposure by league</h2></div>
+        <div id="exposure" class="bars"></div>
+      </div>
+      <div class="panel">
+        <div class="phead"><h2>Crypto desk</h2></div>
+        <div id="crypto"></div>
+      </div>
+      <div class="panel">
+        <div class="phead"><h2>Model health</h2></div>
+        <div id="health"></div>
+      </div>
+    </aside>
+  </section>
+
+  <section class="panel">
+    <div class="phead"><h2>Game slate</h2><span class="muted small">Our projected margin and total vs the sportsbook line</span></div>
+    <div class="tablewrap"><table class="slate" id="slate"><thead><tr>
+      <th>Game</th><th>League</th><th class="r">Starts</th><th class="r">Model margin</th><th class="r">Book margin</th>
+      <th class="r">Model total</th><th class="r">Book total</th><th>Notes</th></tr></thead><tbody></tbody></table></div>
+  </section>
+
+  <section class="panel">
+    <div class="phead"><h2>Track record</h2><span class="muted small">Every pick is logged at the price we'd have paid, then graded on settlement</span></div>
+    <div id="track"></div>
+  </section>
+
+  <p class="errors" id="errors" hidden></p>
+  <footer>Research and paper results only, not financial advice. Prices from Kalshi public market data; stakes are quarter-Kelly on a <span id="bankroll">$1,000</span> paper bankroll.</footer>
+</main>
+
+<dialog id="drawer"><div id="drawerBody"></div><form method="dialog"><button class="close" aria-label="Close">×</button></form></dialog>
+<script src="app.js" defer></script>
+</body>
+</html>
