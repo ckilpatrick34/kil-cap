@@ -38,4 +38,7 @@ LEAGUES = {l.key: l for l in [
            2.4, 2.3, 0.15, 5, "2026-10-05", 45, 0.30, b2b_penalty=0.2),
 ]}
 
+# Kalshi team-total series (ladders like "Chicago over 20.5 points").  Watch-only until the track record shows a profit.
+TEAM_TOTAL = {"nfl": "KXNFLTEAMTOTAL", "nba": "KXNBATEAMTOTAL", "cfb": "KXNCAAFTEAMTOTAL", "cbb": "KXNCAAMBTEAMTOTAL"}
+
 SERIES_TO_LEAGUE = {s: (l.key, i) for l in LEAGUES.values() for i, s in enumerate(l.series)}

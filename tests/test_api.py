@@ -40,11 +40,10 @@ def test_bad_host_and_origin(client):
     assert r.status_code == 403
 
 
-def test_scanner_hides_msu(client):
+def test_scanner_shows_msu_since_block_lifted(client):
     c, _ = client
     tickers = [m["ticker"] for m in c.get("/api/markets").json()["markets"]]
-    assert tickers == ["KXNBAGAME-26NOV24LALBOS-LAL"]
-    assert c.get("/api/markets/KXNCAAFGAME-26NOV28MSSTOLE-MSST").status_code == 404
+    assert "KXNCAAFGAME-26NOV28MSSTOLE-MSST" in tickers
 
 
 def test_recommend_only_no_order_or_live_endpoints(client):

@@ -51,7 +51,8 @@ jobs:
         env:
           KIL_DATA_DIR: ${{ github.workspace }}/data
           KIL_BANKROLL: ${{ vars.KIL_BANKROLL || '100' }}
-          KIL_MAX_TRADE: ${{ vars.KIL_MAX_TRADE || '5' }}
+          KIL_MAX_TRADE: ${{ vars.KIL_MAX_TRADE || '3' }}
+          KIL_BUDGET: ${{ vars.KIL_BUDGET || '25' }}
         run: python -m kil_capital.publish --out site/data/state.json
 
       - name: Save model state

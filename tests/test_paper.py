@@ -37,8 +37,6 @@ def test_buy_close_settle_math(tmp_path):
 def test_buy_guards(tmp_path):
     b = PaperBook(tmp_path / "p.json", start_cash=D("5"))
     with pytest.raises(ValueError):
-        b.buy(ticker="KXNCAAFGAME-X-MSST", side="yes", price="0.4", count=1, title="Mississippi State at Ole Miss")
-    with pytest.raises(ValueError):
         b.buy(ticker="A", side="yes", price="0.4", count=100)   # not enough cash
     b.buy(ticker="A", side="yes", price="0.4", count=1)
     with pytest.raises(ValueError):
@@ -55,12 +53,11 @@ def test_autopilot_off_by_default_and_after_restart(tmp_path):
 def test_autopilot_respects_limits(tmp_path):
     b = PaperBook(tmp_path / "p.json")
     b.set_auto(enabled=True, max_trade_usd="10", max_total_usd="25", max_positions=5, min_edge="0.03")
-    opps = [opp("LOW", edge="0.01"), opp("CHEAP", price="0.01"), opp("MSU", edge="0.2")]
-    opps[2]["title"] = "Mississippi State at Ole Miss"
+    opps = [opp("LOW", edge="0.01"), opp("CHEAP", price="0.01")]
     opps += [opp(f"T{i}") for i in range(6)]
     made = b.autopilot_step(opps)
     tickers = [m["ticker"] for m in made]
-    assert "LOW" not in tickers and "CHEAP" not in tickers and "MSU" not in tickers
+    assert "LOW" not in tickers and "CHEAP" not in tickers
     risk = sum(D(p["avg_price"]) * p["count"] + D(p["fees"]) for p in b.positions.values())
     assert risk <= D("25") and len(b.positions) <= 5
     assert all(D(m["price"]) * m["count"] <= D("10") for m in made)
@@ -78,7 +75,7 @@ def test_api_paper_flow_and_no_venue_calls(client):
     assert c.post("/api/paper/buy", json={"ticker": LAL, "side": "yes", "count": 3}).status_code == 403
     r = c.post("/api/paper/buy", json={"ticker": LAL, "side": "yes", "count": 3}, headers=h).json()
     assert r["price"] == "0.52" and r["count"] == 3            # priced at the server-side ask
-    bad = c.post("/api/paper/buy", json={"ticker": MARKETS[1]["ticker"], "side": "yes", "count": 1}, headers=h)
+    bad = c.post("/api/paper/buy", json={"ticker": LAL, "side": "no", "count": 1}, headers=h)  # already hold YES
     assert bad.status_code in (400, 404)
     assert c.get("/api/paper").json()["positions"][0]["ticker"] == LAL
     assert c.post("/api/autopilot", json={"enabled": True}, headers=h).status_code == 200
