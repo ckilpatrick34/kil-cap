@@ -18,7 +18,7 @@
     <div><strong>KIL CAPITAL</strong><span>Terminal</span></div>
   </a>
   <nav class="tabs" id="tabs" aria-label="Pages">
-    <a href="?view=board" data-tab="board">Board</a><a href="?view=results" data-tab="results">Results</a>
+    <a href="?view=board" data-tab="board">Board</a><a href="?view=live" data-tab="live">Live <span class="count" id="liveCount"></span></a><a href="?view=results" data-tab="results">Results</a>
     <a href="?view=crypto" data-tab="crypto">Crypto</a><a href="?view=ledger" data-tab="ledger">Paper ledger</a>
     <a href="?view=learn" data-tab="learn">Learning log <i class="dot" id="learnDot"></i></a><a href="?view=how" data-tab="how">How it works</a>
   </nav>
@@ -119,6 +119,14 @@
   </details>
   </div>
 
+  <div data-pane="live" hidden>
+  <section class="panel">
+    <div class="phead"><h2>Live betting</h2><span class="badge">Paper picks · recommend-only</span></div>
+    <p class="small muted lnote">In-game model: the score and clock, plus our pregame line for the points still to come, against Kalshi's price. It does not see possession or field position, so it leans half on the market. Prices here are from the last refresh a few minutes ago: check the live Kalshi price and only buy at or under the number shown.</p>
+  </section>
+  <div id="live"></div>
+  </div>
+
   <div data-pane="results" hidden>
   <section class="panel">
     <div class="phead"><h2>Track record</h2><span class="muted small">Every pick is logged at the price we'd have paid, then graded on settlement. Records are kept per sport.</span></div>
@@ -175,5 +183,6 @@
 
 <dialog id="drawer"><div id="drawerBody"></div><form method="dialog"><button class="close" aria-label="Close">×</button></form></dialog>
 <script src="app.js" defer></script>
+<script src="live.js" defer></script>
 </body>
 </html>

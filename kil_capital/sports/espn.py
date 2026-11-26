@@ -86,7 +86,8 @@ def parse_event(e: dict, league: str) -> dict | None:
     away = next((c for c in cs if c.get("homeAway") == "away"), None)
     if not home or not away:
         return None
-    st = (e.get("status") or comp.get("status") or {}).get("type") or {}
+    status = e.get("status") or comp.get("status") or {}
+    st = status.get("type") or {}
     v = comp.get("venue") or {}
     ad = v.get("address") or {}
     start = e.get("date") or comp.get("date")
@@ -98,7 +99,7 @@ def parse_event(e: dict, league: str) -> dict | None:
             "start": start, "start_ts": ts, "state": st.get("state", "pre"), "detail": st.get("shortDetail"),
             "neutral": bool(comp.get("neutralSite")), "indoor": v.get("indoor"), "venue": v.get("fullName"),
             "city": ad.get("city"), "region": ad.get("state"), "home": _team(home, league), "away": _team(away, league),
-            "odds": _odds(comp)}
+            "odds": _odds(comp), "period": status.get("period"), "clock": _f(status.get("clock"))}
 
 
 class Espn:

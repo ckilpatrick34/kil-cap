@@ -19,6 +19,7 @@ from zoneinfo import ZoneInfo
 from . import learn
 from . import model as M
 from . import calibrate as CAL
+from . import live as LIVE
 from . import segments as SEG
 from .espn import Espn
 from .kalshi_games import all_markets, attach
@@ -214,7 +215,9 @@ class Slate:
                               "blend_margin": round(mean_b["margin"], 1), "blend_total": round(mean_b["total"], 1),
                               "games_played": proj["games_played"], "notes": proj["notes"],
                               "injuries": proj["injuries"], "weather": proj["weather"]},
-                    "contracts": rows})
+                    "contracts": rows, "period": g.get("period"), "clock": g.get("clock"),
+                    "live": (LIVE.price_game(lg, key, g, mean_b["margin"], mean_b["total"], [c for v in contracts.values() for c in v],
+                                             self.label) if g["state"] == "in" else None)})
                 self._track_clv(g, rows)
         self.track.grade(self.public, self.clv_for)
         signals.sort(key=lambda s: (-s["exp_profit"], -s["roi"]))   # max expected profit first
