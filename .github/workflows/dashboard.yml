@@ -5,7 +5,7 @@ name: dashboard
 
 on:
   schedule:
-    - cron: "*/15 * * * *"        # GitHub may delay scheduled runs by several minutes
+    - cron: "*/15 * * * *"        # watchdog: restarts the refresh loop if it ever stops
   workflow_dispatch:
   push:
     branches: [main]
@@ -13,6 +13,7 @@ on:
 
 permissions:
   contents: write                 # push the state branch
+  actions: write                  # each run queues the next, so picks refresh every few minutes
   pages: write
   id-token: write
 
@@ -49,8 +50,8 @@ jobs:
       - name: Build picks
         env:
           KIL_DATA_DIR: ${{ github.workspace }}/data
-          KIL_BANKROLL: ${{ vars.KIL_BANKROLL || '1000' }}
-          KIL_MAX_TRADE: ${{ vars.KIL_MAX_TRADE || '50' }}
+          KIL_BANKROLL: ${{ vars.KIL_BANKROLL || '100' }}
+          KIL_MAX_TRADE: ${{ vars.KIL_MAX_TRADE || '5' }}
         run: python -m kil_capital.publish --out site/data/state.json
 
       - name: Save model state
@@ -73,3 +74,12 @@ jobs:
           path: site
       - id: deploy
         uses: actions/deploy-pages@v4
+
+      # Continuous refresh: queue the next run as soon as this one deploys. The concurrency group keeps at
+      # most one run going and one waiting, so cron and push runs merge into the same loop.
+      # Pause by setting repo variable KIL_LIVE=off.
+      - name: Queue next refresh
+        if: success() && github.ref == 'refs/heads/main' && vars.KIL_LIVE != 'off'
+        run: gh workflow run dashboard.yml --ref main -R "$GITHUB_REPOSITORY"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

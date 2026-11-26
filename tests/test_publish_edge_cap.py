@@ -32,3 +32,12 @@ def test_dump_is_browser_valid_json():
     out = publish.dump({"learn": {"params": {"tune_logloss": float("inf"), "x": [float("nan"), 1.5]}}})
     assert json.loads(out) == {"learn": {"params": {"tune_logloss": None, "x": [None, 1.5]}}}
     assert "Infinity" not in out and "NaN" not in out
+
+
+def test_one_pick_per_game_and_kind():
+    pk = lambda t, g: {"ticker": t, "game_id": g}
+    picks = [pk("KXNBAGAME-26NOV26MILOKC-OKC", "g1"), pk("KXNBAGAME-26NOV26MILOKC-MIL", "g1"),
+             pk("KXNBATOTAL-26NOV26MILOKC-220", "g1"), pk("KXNBATOTAL-26NOV26MILOKC-224", "g1"),
+             pk("KXBTCD-X", None), pk("KXBTCD-Y", None)]
+    assert [p["ticker"] for p in publish._one_per_game(picks)] == [
+        "KXNBAGAME-26NOV26MILOKC-OKC", "KXNBATOTAL-26NOV26MILOKC-220", "KXBTCD-X", "KXBTCD-Y"]

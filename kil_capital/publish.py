@@ -26,8 +26,8 @@ from .sports.slate import Slate
 from .venue.public import PublicClient
 
 log = logging.getLogger("kil.publish")
-EQUITY = float(os.environ.get("KIL_BANKROLL", "1000"))     # sizing bankroll for Kelly stakes
-MAX_TRADE = float(os.environ.get("KIL_MAX_TRADE", "50"))
+EQUITY = float(os.environ.get("KIL_BANKROLL", "100"))      # sizing bankroll for Kelly stakes
+MAX_TRADE = float(os.environ.get("KIL_MAX_TRADE", "5"))
 MIN_EDGE = float(os.environ.get("KIL_MIN_EDGE", "0.03"))
 MAX_EDGE = float(os.environ.get("KIL_MAX_EDGE", "0.15"))   # bigger gaps are far likelier model error than mispricing
 
@@ -41,6 +41,18 @@ def _finite(x):
     if isinstance(x, (list, tuple)):
         return [_finite(v) for v in x]
     return x
+
+
+def _one_per_game(picks: list[dict]) -> list[dict]:
+    """Both sides of a game (OKC NO = MIL YES) and neighbouring strikes are one position, not several:
+    keep the best pick per game and market kind. Input is sorted best-first."""
+    seen, out = set(), []
+    for p in picks:
+        k = (p["game_id"], p["ticker"].split("-")[0]) if p.get("game_id") else None   # series = market kind
+        if k is None or k not in seen:
+            seen.add(k)
+            out.append(p)
+    return out
 
 
 def _allowed(s: dict) -> bool:
@@ -86,6 +98,7 @@ def build(public, data_dir: Path, tz_name: str = SETTINGS.timezone) -> dict:
     picks = sorted(filter(_allowed, picks), key=lambda s: -s.get("exp_profit", 0))
     suspect = [p for p in picks if p["edge"] > MAX_EDGE]   # kept visible for review, never recommended
     picks = [p for p in picks if p["edge"] <= MAX_EDGE]
+    picks = _one_per_game(picks)
     games = [g for g in sports["games"] if _allowed({"title": g["name"]})]
     lg = learn.load(data_dir / "learn_log.json")
     return {
@@ -118,5 +131,5 @@ def main():  # pragma: no cover - exercised in GitHub Actions
     print(f"wrote {out}: {len(state['picks'])} picks, {len(state['games'])} games, {len(state['errors'])} errors")
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     main()
