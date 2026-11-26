@@ -25,3 +25,10 @@ def test_implausible_edges_are_held_out(monkeypatch, tmp_path):
     st = publish.build(None, tmp_path)
     assert [p["ticker"] for p in st["picks"]] == ["OK"]
     assert [p["ticker"] for p in st["suspect"]] == ["HUGE"]
+
+
+def test_dump_is_browser_valid_json():
+    import json
+    out = publish.dump({"learn": {"params": {"tune_logloss": float("inf"), "x": [float("nan"), 1.5]}}})
+    assert json.loads(out) == {"learn": {"params": {"tune_logloss": None, "x": [None, 1.5]}}}
+    assert "Infinity" not in out and "NaN" not in out

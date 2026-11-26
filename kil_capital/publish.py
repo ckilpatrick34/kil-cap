@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import math
 import os
 import time
 from datetime import datetime, timezone
@@ -29,6 +30,17 @@ EQUITY = float(os.environ.get("KIL_BANKROLL", "1000"))     # sizing bankroll for
 MAX_TRADE = float(os.environ.get("KIL_MAX_TRADE", "50"))
 MIN_EDGE = float(os.environ.get("KIL_MIN_EDGE", "0.03"))
 MAX_EDGE = float(os.environ.get("KIL_MAX_EDGE", "0.15"))   # bigger gaps are far likelier model error than mispricing
+
+
+def _finite(x):
+    """Browsers reject NaN/Infinity in JSON and then load nothing, so non-finite numbers become null."""
+    if isinstance(x, float):
+        return x if math.isfinite(x) else None
+    if isinstance(x, dict):
+        return {k: _finite(v) for k, v in x.items()}
+    if isinstance(x, (list, tuple)):
+        return [_finite(v) for v in x]
+    return x
 
 
 def _allowed(s: dict) -> bool:
@@ -89,6 +101,10 @@ def build(public, data_dir: Path, tz_name: str = SETTINGS.timezone) -> dict:
     }
 
 
+def dump(state: dict) -> str:
+    return json.dumps(_finite(state), separators=(",", ":"), default=str, allow_nan=False)
+
+
 def main():  # pragma: no cover - exercised in GitHub Actions
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default="site/data/state.json")
@@ -98,7 +114,7 @@ def main():  # pragma: no cover - exercised in GitHub Actions
     state = build(PublicClient(SETTINGS.kalshi_base_url, SETTINGS.public_req_per_sec), Path(a.data))
     out = Path(a.out)
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps(state, separators=(",", ":"), default=str))
+    out.write_text(dump(state))
     print(f"wrote {out}: {len(state['picks'])} picks, {len(state['games'])} games, {len(state['errors'])} errors")
 
 
