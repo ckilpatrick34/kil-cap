@@ -1,10 +1,10 @@
-// Kil Capital Terminal: static dashboard. Reads data/state.json (rebuilt by GitHub Actions every 15 min)
+// Kil Capital Terminal: static dashboard. Reads data/state.json (rebuilt by GitHub Actions every few minutes)
 // and, where the browser is allowed to, refreshes prices straight from Kalshi's public market data so
 // edges and stakes stay live between rebuilds. Recommend-only: nothing here can place an order.
 "use strict";
 
 const KALSHI = "https://api.elections.kalshi.com/trade-api/v2";
-const STATE_EVERY = 60e3, LIVE_EVERY = 15e3, LIVE_RETRY = 300e3, STALE_MIN = 40;
+const STATE_EVERY = 60e3, LIVE_EVERY = 15e3, LIVE_RETRY = 300e3, STALE_MIN = 30;
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 const usd = (v, d = 0) => v == null ? "–" : (v < 0 ? "−$" : "$") + Math.abs(v).toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -12,7 +12,10 @@ const cents = (p) => p == null ? "–" : Math.round(p * 100) + "¢";
 const pct = (v, d = 1, sign = false) => v == null ? "–" : (sign && v > 0 ? "+" : "") + (v * 100).toFixed(d) + "%";
 const fee = (p) => 0.07 * p * (1 - p);
 
-let S = null, filter = "All", liveOk = null, liveTimer = null;
+let S = null, liveOk = null, liveTimer = null;
+const TZ = "America/Chicago", WIN_MIN = 0.55;
+const F = { w: "today", q: "", league: "", conf: "", kind: "", grade: "", top25: false, rvr: false, win: true, sort: "profit" };
+const legs = new Set();     // tickers ticked for the parlay
 const quotes = new Map();   // ticker -> {yes, no} live asks
 
 // ---------- live pricing (mirrors sports/segments.size) ----------
@@ -28,11 +31,36 @@ function reprice(p) {
     count, stake: +(count * c).toFixed(2), roi: (p.fair - c) / c, exp_profit: +(count * (p.fair - c)).toFixed(2) };
 }
 
-function picks() {
-  const all = (S?.picks || []).map(reprice);
-  return all.filter((p) => filter === "All" || (filter === "Crypto" ? p.desk === "crypto" : (p.league || "") === filter))
-    .sort((a, b) => b.exp_profit - a.exp_profit);
+const ymd = (t) => new Date(t).toLocaleDateString("en-CA", { timeZone: TZ });
+const teamsOf = (p) => p.teams || [];
+const ranked = (p) => teamsOf(p).filter((t) => t.rank).length;
+
+function inWindow(p) {
+  if (!p.start) return true;                                   // crypto: always open
+  const t = Date.parse(p.start), now = Date.now();
+  if (F.w === "today") return t < now || ymd(t) === ymd(now);  // started counts as today
+  return t < now + 7 * 864e5;
 }
+
+function matches(p) {
+  if (!inWindow(p)) return false;
+  if (F.league && (p.desk === "crypto" ? "Crypto" : p.league) !== F.league) return false;
+  if (F.kind && p.kind !== F.kind) return false;
+  if (F.grade && !F.grade.includes(p.confidence)) return false;
+  if (F.conf && !teamsOf(p).some((t) => t.conf === F.conf)) return false;
+  if (F.top25 && !ranked(p)) return false;
+  if (F.rvr && ranked(p) < 2) return false;
+  if (F.win && !(p.fair >= WIN_MIN && p.edge > 0)) return false;
+  if (F.q) {
+    const hay = [p.title, ...teamsOf(p).flatMap((t) => [t.name, t.abbr, t.nick])].join(" ").toLowerCase();
+    if (!F.q.toLowerCase().split(/\s+/).every((w) => hay.includes(w))) return false;
+  }
+  return true;
+}
+
+const SORTS = { profit: (a, b) => b.exp_profit - a.exp_profit, win: (a, b) => b.fair - a.fair,
+  edge: (a, b) => b.edge - a.edge, start: (a, b) => (a.start || "9") < (b.start || "9") ? -1 : 1 };
+function picks() { return (S?.picks || []).map(reprice).filter(matches).sort(SORTS[F.sort] || SORTS.profit); }
 
 async function pullLive() {
   const tickers = [...new Set((S?.picks || []).map((p) => p.ticker))];
@@ -77,40 +105,72 @@ function ageMin() { return S ? (Date.now() - Date.parse(S.generated)) / 60e3 : I
 function setFeed() {
   const el = $("#feed"), lab = $("#feedLabel"), a = ageMin();
   el.className = "feed " + (a > STALE_MIN ? "stale" : liveOk ? "live" : "snap");
-  lab.textContent = a > STALE_MIN ? "Stale" : liveOk ? "Live prices" : "15-min snapshot";
+  lab.textContent = a > STALE_MIN ? "Stale" : liveOk ? "Live prices" : "Auto-refreshing";
   $("#updated").textContent = S ? `Models ${a < 1 ? "just now" : Math.round(a) + " min ago"}` : "–";
 }
 
 // ---------- render ----------
 function render() {
   $("#bankroll").textContent = usd(S.bankroll);
-  renderFilters(); renderKpis(); renderPicks(); renderExposure(); renderCrypto(); renderHealth(); renderSlate(); renderTrack();
+  renderFilters(); renderKpis(); renderPicks(); renderExposure(); renderParlay(); renderCrypto(); renderHealth(); renderSlate(); renderTrack();
   const errs = S.errors || [];
   $("#errors").hidden = !errs.length;
   $("#errors").textContent = errs.length ? "Data notes: " + errs.join(" · ") : "";
 }
 
-function renderFilters() {
-  const leagues = [...new Set((S.picks || []).filter((p) => p.desk === "sports").map((p) => p.league))].sort();
-  const opts = ["All", ...leagues, ...((S.picks || []).some((p) => p.desk === "crypto") ? ["Crypto"] : [])];
-  if (!opts.includes(filter)) filter = "All";
-  $("#filters").innerHTML = opts.map((o) => `<button role="tab" aria-selected="${o === filter}">${esc(o)}</button>`).join("");
-  $("#filters").onclick = (e) => { if (e.target.tagName === "BUTTON") { filter = e.target.textContent; renderFilters(); renderPicks(); } };
+const ctl = { q: "#q", league: "#fLeague", conf: "#fConf", kind: "#fKind", grade: "#fGrade", top25: "#fTop25", rvr: "#fRvR", win: "#fWin", sort: "#fSort" };
+const DEF = { ...F };
+
+function loadUrl() {
+  const u = new URLSearchParams(location.search);
+  for (const k of Object.keys(F)) if (u.has(k)) F[k] = typeof DEF[k] === "boolean" ? u.get(k) === "1" : u.get(k);
 }
+function saveUrl() {
+  const u = new URLSearchParams();
+  for (const [k, v] of Object.entries(F)) if (v !== DEF[k]) u.set(k, typeof v === "boolean" ? (v ? "1" : "0") : v);
+  history.replaceState(null, "", u.toString() ? "?" + u : location.pathname);
+}
+
+function options(sel, vals, all) {
+  const cur = F[Object.keys(ctl).find((k) => ctl[k] === sel)];
+  $(sel).innerHTML = `<option value="">${all}</option>` + vals.map((v) => `<option${v === cur ? " selected" : ""}>${esc(v)}</option>`).join("");
+}
+
+function renderFilters() {
+  const ps = S.picks || [];
+  options("#fLeague", [...new Set(ps.map((p) => p.desk === "crypto" ? "Crypto" : p.league))].sort(), "All leagues");
+  options("#fConf", [...new Set(ps.flatMap((p) => teamsOf(p).map((t) => t.conf)).filter(Boolean))].sort(), "All conferences");
+  for (const [k, sel] of Object.entries(ctl)) { const el = $(sel); if (el.type === "checkbox") el.checked = F[k]; else el.value = F[k]; }
+  for (const b of document.querySelectorAll("#when button")) b.setAttribute("aria-selected", b.dataset.w === F.w);
+  const n = Object.keys(F).filter((k) => k !== "w" && k !== "sort" && F[k] !== DEF[k]).length;
+  $("#fCount").textContent = n ? `(${n})` : "";
+}
+
+function onFilter() {
+  for (const [k, sel] of Object.entries(ctl)) { const el = $(sel); F[k] = el.type === "checkbox" ? el.checked : el.value; }
+  update();
+}
+function update() { saveUrl(); renderFilters(); renderPicks(); renderKpis(); renderExposure(); renderParlay(); }
+
+let qTimer;
+$("#q").addEventListener("input", () => { clearTimeout(qTimer); qTimer = setTimeout(onFilter, 150); });
+for (const sel of Object.values(ctl)) if (sel !== "#q") $(sel).addEventListener("change", onFilter);
+$("#when").addEventListener("click", (e) => { const b = e.target.closest("button[data-w]"); if (b) { F.w = b.dataset.w; update(); } });
+$("#fClear").addEventListener("click", () => { Object.assign(F, DEF, { w: F.w }); update(); });
 
 function renderKpis() {
   if (!S) return;
-  const ps = (S.picks || []).map(reprice);
+  const ps = picks();
   const ev = ps.reduce((a, p) => a + p.exp_profit, 0), stake = ps.reduce((a, p) => a + p.stake, 0);
   const avgEdge = ps.length ? ps.reduce((a, p) => a + p.edge, 0) / ps.length : null;
   const t = S.track?.total || {}, roiTrack = trackRoi();
   const promoted = (S.learn?.log || []).filter((r) => r.promoted).length;
   const k = [
-    ["Live picks", ps.length, `${ps.filter((p) => p.confidence === "A").length} grade A` + ((S.suspect || []).length ? ` · ${S.suspect.length} held out (edge > ${pct(S.max_edge, 0)})` : "")],
+    ["Picks in view", ps.length, ps.length ? `avg win chance ${pct(ps.reduce((a, p) => a + p.fair, 0) / ps.length, 0)} · ${ps.filter((p) => p.confidence === "A").length} grade A` : "loosen the filters"],
     ["Expected profit", usd(ev, 2), "sum across picks"],
     ["Capital at work", usd(stake, 0), `${pct(stake / S.bankroll, 0)} of bankroll`],
     ["Avg edge after fee", pct(avgEdge, 1), "fair minus cost"],
-    ["Track record", t.graded ? `${t.wins}-${t.graded - t.wins}` : "–", t.graded ? `ROI ${pct(roiTrack, 1, true)} · ${t.pending} pending` : `${t.pending ?? 0} pending`],
+    ["Track record", t.graded ? `${t.wins}-${t.graded - t.wins}` : "–", t.graded ? `won ${pct(t.wins / t.graded, 0)} · ROI ${pct(roiTrack, 1, true)} · ${t.pending} pending` : `${t.pending ?? 0} pending, none settled yet`],
     ["Model", promoted ? `${promoted} promoted` : "Champions held", "nightly, unseen games only"],
   ];
   $("#kpis").innerHTML = k.map(([a, b, c]) => `<div class="kpi"><span>${a}</span><b>${esc(b)}</b><small>${esc(c)}</small></div>`).join("");
@@ -142,12 +202,14 @@ function renderPicks(flash = false) {
   $("#blotter tbody").innerHTML = ps.map((p, i) => {
     const before = lastPrices.get(p.ticker), moved = flash && before != null && before !== p.price;
     const cls = moved ? (p.price < before ? "tick-up" : "tick-down") : "";   // cheaper = better for us
+    const tm = teamsOf(p).map((t) => `${t.rank ? `<span class="rk">#${t.rank}</span>` : ""}${esc(t.abbr || t.name)}${t.conf ? `<span class="cf">${esc(t.conf)}</span>` : ""}`).join(" @ ");
     return `<tr tabindex="0" data-t="${esc(p.ticker)}" class="${cls}">
+      <td class="c">${p.game_id ? `<input type="checkbox" data-leg="${esc(p.ticker)}" ${legs.has(p.ticker) ? "checked" : ""} aria-label="Add to parlay">` : ""}</td>
       <td class="rank">${i + 1}</td>
       <td class="pick"><b><span class="tag">${esc(p.desk === "crypto" ? "CRYPTO" : p.league)}</span>${esc(p.title)}</b>
-        <small>Buy <span class="side-${p.side}">${p.side.toUpperCase()}</span> · ${p.count} contracts · ROI ${pct(p.roi, 1, true)}</small></td>
+        <small>${tm ? tm + " · " : ""}Buy <span class="side-${p.side}">${p.side.toUpperCase()}</span> · ${p.count} contracts · ROI ${pct(p.roi, 1, true)}</small></td>
       <td class="r">${cents(p.price)}${p.live ? "" : '<small class="muted"> snap</small>'}</td>
-      <td class="r">${cents(p.fair)}</td>
+      <td class="r ${p.fair >= WIN_MIN ? "pos" : ""}">${pct(p.fair, 0)}</td>
       <td class="r ${p.edge > 0 ? "pos" : "neg"}">${pct(p.edge, 1, true)}</td>
       <td class="c"><span class="grade ${esc(p.confidence)}" title="Confidence ${esc(p.confidence)}">${esc(p.confidence)}</span></td>
       <td class="r">${usd(p.stake, 2)}</td>
@@ -157,7 +219,8 @@ function renderPicks(flash = false) {
   lastPrices = new Map(ps.map((p) => [p.ticker, p.price]));
 }
 
-$("#blotter").addEventListener("click", (e) => { const tr = e.target.closest("tr[data-t]"); if (tr) openPick(tr.dataset.t); });
+$("#blotter").addEventListener("change", (e) => { const t = e.target.dataset?.leg; if (t) toggleLeg(t, e.target.checked); });
+$("#blotter").addEventListener("click", (e) => { if (e.target.dataset?.leg) return; const tr = e.target.closest("tr[data-t]"); if (tr) openPick(tr.dataset.t); });
 $("#blotter").addEventListener("keydown", (e) => { const tr = e.target.closest("tr[data-t]"); if (tr && e.key === "Enter") openPick(tr.dataset.t); });
 
 function openPick(ticker) {
@@ -188,13 +251,67 @@ function openPick(ticker) {
       </div>
       ${notes.length ? `<ul>${notes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>` : ""}
       ${m.weather ? `<p class="small muted">Weather: ${esc(typeof m.weather === "string" ? m.weather : JSON.stringify(m.weather))}</p>` : ""}` : ""}
-    <p class="small muted">Segment ${esc(p.segment || "–")} · sizing multiplier ${p.segment_mult ?? 1}×. ${p.live ? "Price is live from Kalshi." : "Price is from the last 15-minute refresh."}</p>`;
+    <p class="small muted">Segment ${esc(p.segment || "–")} · sizing multiplier ${p.segment_mult ?? 1}×. ${p.live ? "Price is live from Kalshi." : "Price is from the latest refresh, a few minutes old at most."}</p>`;
   $("#drawer").showModal();
+}
+
+// ---------- parlays ----------
+// Legs must be from different games (same-game legs are correlated, so multiplying them would overstate the
+// chance). Kalshi prices combos on request, so the page cannot read a live combo price: it gives the most
+// you should accept instead, keeping a 2¢ cushion after the fee.
+const pick = (t) => (S?.picks || []).map(reprice).find((p) => p.ticker === t);
+function toggleLeg(t, on) {
+  const p = pick(t);
+  if (on && [...legs].some((x) => pick(x)?.game_id === p?.game_id)) { renderPicks(); return alert0("One leg per game: those outcomes move together."); }
+  if (on && legs.size >= 4) { renderPicks(); return alert0("Four legs at most: each one cuts the chance to win."); }
+  on ? legs.add(t) : legs.delete(t);
+  renderParlay();
+}
+let note = "";
+function alert0(m) { note = m; renderParlay(); }
+
+function maxPrice(fair, cushion = 0.02) {
+  for (let c = 99; c >= 1; c--) { const x = c / 100; if (fair - x - fee(x) >= cushion) return x; }
+  return null;
+}
+
+function suggest() {
+  const pool = (S?.picks || []).map(reprice).filter((p) => p.desk === "sports" && inWindow(p) && p.fair >= WIN_MIN && p.edge > 0)
+    .sort((a, b) => b.fair / b.price - a.fair / a.price);
+  const out = [], seen = new Set();
+  for (const p of pool) { if (!seen.has(p.game_id)) { seen.add(p.game_id); out.push(p.ticker); } if (out.length === 2) break; }
+  legs.clear(); out.forEach((t) => legs.add(t)); note = out.length < 2 ? "Not enough strong legs in this window for a parlay." : "";
+  renderPicks(); renderParlay();
+}
+$("#pSuggest").addEventListener("click", suggest);
+$("#parlay").addEventListener("click", (e) => { const t = e.target.dataset?.rm; if (t) { legs.delete(t); renderPicks(); renderParlay(); } });
+
+function renderParlay() {
+  const ls = [...legs].map(pick).filter(Boolean);
+  if (ls.length !== legs.size) for (const t of [...legs]) if (!pick(t)) legs.delete(t);   // a leg dropped off the board
+  if (!ls.length) {
+    $("#parlay").innerHTML = `<p class="muted small" style="margin:0">${esc(note) || "Tick 2 or 3 bets from different games, or press Suggest best."}</p>`;
+    return;
+  }
+  const win = ls.reduce((a, p) => a * p.fair, 1), mkt = ls.reduce((a, p) => a * p.price, 1), mx = maxPrice(win);
+  const stake = S.max_trade, payout = mx ? stake / (mx + fee(mx)) : null;
+  $("#parlay").innerHTML = `${ls.map((p) => `<div class="leg"><span>${esc(p.title)}</span><span class="mono">${pct(p.fair, 0)}
+      <button class="link" data-rm="${esc(p.ticker)}" aria-label="Remove leg">×</button></span></div>`).join("")}
+    <div class="big">
+      <div><span>Chance all win</span><b class="${win >= 0.5 ? "pos" : "neg"}">${pct(win, 0)}</b></div>
+      <div><span>Legs bought singly</span><b>${cents(mkt)}</b></div>
+      <div><span>Accept combo at most</span><b>${mx ? cents(mx) : "skip"}</b></div>
+    </div>
+    <p class="small muted" style="margin:0">${mx ? `At ${cents(mx)}, ${usd(stake, 0)} returns about ${usd(payout, 2)} if every leg wins. ` : "No price leaves an edge after the fee. "}
+      Kalshi quotes combos on request; take a quote only at or below this number. ${ls.length < 2 ? "Add another leg from a different game." : ""}
+      ${win < 0.5 ? "Most parlays at this size lose: keep stakes small and judge them separately." : ""}</p>
+    ${note ? `<p class="small" style="margin:0;color:var(--warn)">${esc(note)}</p>` : ""}`;
+  note = "";
 }
 
 function renderExposure() {
   const by = {};
-  for (const p of (S.picks || []).map(reprice)) by[p.desk === "crypto" ? "Crypto" : p.league] = (by[p.desk === "crypto" ? "Crypto" : p.league] || 0) + p.stake;
+  for (const p of picks()) by[p.desk === "crypto" ? "Crypto" : p.league] = (by[p.desk === "crypto" ? "Crypto" : p.league] || 0) + p.stake;
   const rows = Object.entries(by).sort((a, b) => b[1] - a[1]), max = Math.max(1, ...rows.map((r) => r[1]));
   $("#exposure").innerHTML = rows.length ? rows.map(([k, v]) => `<div class="bar"><span>${esc(k)}</span>
     <div class="track" role="img" aria-label="${esc(k)} ${usd(v, 0)}"><div class="fill" style="width:${(v / max) * 100}%"></div></div>
@@ -277,6 +394,7 @@ function renderTrack() {
   };
 })();
 
+loadUrl();
 pullState();
 setInterval(pullState, STATE_EVERY);
 setInterval(() => { setFeed(); if (S) renderPicks(); }, 30e3);   // keep countdowns fresh

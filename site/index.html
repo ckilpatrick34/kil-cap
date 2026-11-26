@@ -32,21 +32,41 @@
     <div class="panel picks">
       <div class="phead">
         <h2>Recommended bets <span class="count" id="pickCount"></span></h2>
-        <div class="filters" id="filters" role="tablist"></div>
+        <div class="seg" id="when" role="tablist" aria-label="Time window">
+          <button role="tab" data-w="today">Today</button><button role="tab" data-w="week">This week</button>
+        </div>
+      </div>
+      <div class="toolbar">
+        <input type="search" id="q" placeholder="Search a team: Georgia, UGA, Bulldogs" aria-label="Search teams">
+        <select id="fLeague" aria-label="League"><option value="">All leagues</option></select>
+        <select id="fConf" aria-label="Conference"><option value="">All conferences</option></select>
+        <select id="fKind" aria-label="Bet type"><option value="">All bet types</option><option value="winner">Winner</option>
+          <option value="spread">Spread</option><option value="total">Total</option><option value="crypto">Crypto</option></select>
+        <select id="fGrade" aria-label="Grade"><option value="">Any grade</option><option value="A">A only</option><option value="AB">A or B</option></select>
+        <label class="chip"><input type="checkbox" id="fTop25"> Top 25</label>
+        <label class="chip"><input type="checkbox" id="fRvR"> Ranked vs ranked</label>
+        <label class="chip" title="Only bets the model gives at least a 55% chance to win, still profitable after fees"><input type="checkbox" id="fWin"> Win-majority (55%+)</label>
+        <select id="fSort" aria-label="Sort"><option value="profit">Sort: expected profit</option><option value="win">Sort: win chance</option>
+          <option value="edge">Sort: edge</option><option value="start">Sort: start time</option></select>
+        <button class="link" id="fClear">Clear <span id="fCount"></span></button>
       </div>
       <div class="tablewrap">
         <table class="blotter" id="blotter">
           <thead><tr>
-            <th>#</th><th>Pick</th><th class="r">Price</th><th class="r">Fair</th><th class="r">Edge</th>
+            <th class="c" title="Add to parlay">+</th><th>#</th><th>Pick</th><th class="r">Price</th><th class="r">Win chance</th><th class="r">Edge</th>
             <th class="c">Conf</th><th class="r">Stake</th><th class="r">Exp. profit</th><th class="r">Starts</th>
           </tr></thead>
           <tbody></tbody>
         </table>
-        <p class="empty" id="noPicks" hidden>No bet clears the edge, confidence and sizing gates right now. That is the model doing its job.</p>
+        <p class="empty" id="noPicks" hidden>No bet matches these filters right now.</p>
       </div>
     </div>
 
     <aside class="side">
+      <div class="panel">
+        <div class="phead"><h2>Parlay builder</h2><button class="link" id="pSuggest">Suggest best</button></div>
+        <div id="parlay" class="parlay"></div>
+      </div>
       <div class="panel">
         <div class="phead"><h2>Exposure by league</h2></div>
         <div id="exposure" class="bars"></div>

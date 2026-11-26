@@ -100,5 +100,25 @@ dialog::backdrop{background:rgba(5,10,20,.55)}
 #drawerBody .facts b{font-family:var(--mono)}
 #drawerBody ul{margin:8px 0;padding-left:18px;color:var(--muted)}
 .close{position:absolute;top:10px;right:12px;background:none;border:0;color:var(--muted);font-size:22px;cursor:pointer}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{font:inherit;font-size:13px;font-weight:500;padding:5px 14px;border:0;background:transparent;color:var(--muted);cursor:pointer}
+.seg button[aria-selected="true"]{background:var(--text);color:var(--panel)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:0 16px 12px;border-bottom:1px solid var(--line2)}
+.toolbar input[type=search]{flex:1 1 220px;min-width:0;font:inherit;font-size:13px;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--text)}
+.toolbar select{font:inherit;font-size:12px;padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--text)}
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:12px;padding:4px 10px;border:1px solid var(--line);border-radius:999px;color:var(--muted);cursor:pointer}
+.chip:has(input:checked){background:var(--accent-bg);color:var(--accent);border-color:transparent}
+.chip input{margin:0;accent-color:var(--accent)}
+button.link{font:inherit;font-size:12px;background:none;border:0;color:var(--accent);cursor:pointer;padding:4px}
+.rk{font-family:var(--mono);font-size:11px;color:var(--warn);font-weight:600;margin-right:3px}
+.cf{font-size:11px;color:var(--faint);margin-left:4px}
+td input[type=checkbox]{accent-color:var(--accent);width:15px;height:15px;cursor:pointer}
+.parlay{padding:4px 16px 16px;display:grid;gap:10px;font-size:13px}
+.parlay .leg{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.parlay .leg span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.parlay .big{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.parlay .big div{background:var(--line2);border-radius:8px;padding:8px}
+.parlay .big span{display:block;font-size:11px;color:var(--muted)}
+.parlay .big b{font-family:var(--mono);font-size:16px}
 @media (max-width:1100px){.grid{grid-template-columns:1fr}.side{grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}.kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media (max-width:640px){.top{padding:10px 16px}main{padding:16px}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.status .muted{display:none}#drawerBody .facts{grid-template-columns:repeat(2,minmax(0,1fr))}}
