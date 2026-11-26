@@ -8,6 +8,7 @@ Target: home win. Train old seasons, test unseen seasons.
   python -m kil_capital.research.mlb /home/claude/data_mlb/rs/seasons
 """
 import csv, glob, math, os, re, sys
+from datetime import datetime
 from collections import defaultdict
 
 W = dict(BB=0.69, HBP=0.72, S=0.88, D=1.25, T=1.58, HR=2.03)  # snip: fixed wOBA weights; year-specific when it matters
@@ -115,12 +116,16 @@ def build(root, years):
         BAT = defaultdict(lambda: defaultdict(int))    # team batting
         RD = defaultdict(lambda: [0, 0])               # team runs for-against, games
         LG = defaultdict(int)
+        PENLOG = defaultdict(list)                     # team -> [(day, {reliever: PA})]
+        LAST = {}                                      # pitcher -> last day pitched
+        STARTS = defaultdict(lambda: [0, 0])           # starter -> [starts, PA as starter]
         for gid, info, sp, pit, bat in games:
             vis, home = info.get("visteam"), info.get("hometeam")
             key = (gid[:3], gid[3:11], gid[11])
             if key not in scores or 0 not in sp or 1 not in sp:
                 continue
             vr, hr = scores[key]
+            day = datetime.strptime(info.get("date", "2000/01/01"), "%Y/%m/%d").toordinal()
             lg_pa = max(LG["PA"], 1)
             lgK, lgBB, lgFB = LG["K"] / lg_pa, (LG["BB"] + LG["HBP"]) / lg_pa, LG["FB"] / lg_pa
             hrfb = LG["HR"] / max(LG["FB"], 1)
@@ -147,6 +152,16 @@ def build(root, years):
                 feat[tag + "_bat_woba"] = wob(BAT[team], 400)
                 rf, ra, g = RD[team][0], RD[team][1], max(RD[team][2] if len(RD[team]) > 2 else 0, 0)
                 feat[tag + "_rd"] = (rf - ra) / (g + 10)
+                # fatigue: bullpen workload in the last 1 and 3 days, relievers used both of the last 2 days
+                recent = [(d0, r) for d0, r in PENLOG[team] if day - d0 <= 3]
+                feat[tag + "_pen_pa3"] = sum(sum(r.values()) for d0, r in recent)
+                feat[tag + "_pen_pa1"] = sum(sum(r.values()) for d0, r in recent if day - d0 == 1)
+                d1 = set().union(*[r for d0, r in recent if day - d0 == 1]) if recent else set()
+                d2 = set().union(*[r for d0, r in recent if day - d0 == 2]) if recent else set()
+                feat[tag + "_pen_b2b"] = len(d1 & d2)
+                feat[tag + "_sp_rest"] = min(day - LAST.get(sp[side], day - 10), 10)
+                st = STARTS[sp[side]]
+                feat[tag + "_sp_depth"] = (st[1] + 24 * 3) / (st[0] + 3)  # batters faced per start, prior 24
             if LG["PA"] > 5000:  # skip opening days with no league baseline
                 rows.append(feat)
             # update after the game
@@ -157,6 +172,13 @@ def build(root, years):
                     LG[k] += v
                     if not starter:
                         PEN[team][k] += v
+            for side, team in ((1, home), (0, vis)):
+                rel = {pid: c.get("PA", 0) for (s2, pid, starter), c in pit.items() if s2 == side and not starter}
+                PENLOG[team] = [x for x in PENLOG[team] if day - x[0] < 4] + [(day, rel)]
+                STARTS[sp[side]][0] += 1
+                STARTS[sp[side]][1] += sum(c.get("PA", 0) for (s2, pid, starter), c in pit.items() if s2 == side and starter)
+            for (s2, pid, starter) in pit:
+                LAST[pid] = day
             for side, c in bat.items():
                 team = home if side == 1 else vis
                 for k, v in c.items():
@@ -169,13 +191,15 @@ def build(root, years):
     return rows
 
 
-FEATS = ["sp_xfip", "sp_kbb", "sp_woba", "pen_xfip", "bat_woba", "rd"]
+FEATS = ["sp_xfip", "sp_kbb", "sp_woba", "pen_xfip", "bat_woba", "rd",
+         "pen_pa3", "pen_pa1", "pen_b2b", "sp_rest", "sp_depth"]
+BASE_FEATS = FEATS[:6]
 
 
-def xy(rows):
+def xy(rows, feats=None):
     X, Y = [], []
     for r in rows:
-        X.append([r["h_" + f] - r["v_" + f] for f in FEATS]); Y.append(r["hw"])
+        X.append([r["h_" + f] - r["v_" + f] for f in feats or FEATS]); Y.append(r["hw"])
     return X, Y
 
 
@@ -209,6 +233,10 @@ def main(root):
     train = [r for r in rows if r["season"] <= 2019]
     valid = [r for r in rows if 2021 <= r["season"] <= 2022]
     test = [r for r in rows if r["season"] >= 2023]
+    old = fit_logistic(*xy(train, BASE_FEATS))
+    for name, part in (("valid 2021-22", valid), ("test 2023-25", test)):
+        X, Y = xy(part, BASE_FEATS)
+        print(f"{name} without fatigue: logloss {logloss(predict(old, X), Y):.4f}")
     model = fit_logistic(*xy(train))
     base = sum(r["hw"] for r in train) / len(train)
     print(f"games: train {len(train)}  valid {len(valid)}  test {len(test)}  home win rate {base:.3f}")

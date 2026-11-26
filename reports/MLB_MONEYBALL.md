@@ -19,6 +19,14 @@ Research on paper, not betting advice.
 
 Lower log loss is better. The model clearly beats the home-team baseline on seasons it never saw. Two features matter most: run differential and pitcher K-BB%. xFIP adds signal beyond wOBA allowed, which is the moneyball idea that skill stats beat results.
 
+**Bullpen rest and fatigue (added).** Each team gets five fatigue features, all known before first pitch:
+- batters faced by the bullpen in the last 3 days and in the last day
+- relievers who pitched on both of the previous two days
+- the starting pitcher's days of rest
+- the starter's average batters faced per start (deeper starters leave less for the bullpen)
+
+On the unseen 2023-25 seasons, log loss improves from 0.6800 to 0.6797. The directions make sense: a tired bullpen hurts and a deep starter helps. The effect is small on its own, though. The real question is whether betting prices fail to account for it, and that needs prices to answer.
+
 **Open question: does it beat the market?** That needs clean MLB moneylines. The SBR MLB archive we have is corrupt and must not be used. For reference only (unverified, from general knowledge), MLB closing lines usually score about 0.675-0.68 log loss, so this model is probably near the market, not above it. The real test is the ERA-versus-xFIP hypothesis: a pitcher whose results are lucky (low runs allowed, poor skill stats) may be overpriced. That test needs odds.
 
 **Next steps**
