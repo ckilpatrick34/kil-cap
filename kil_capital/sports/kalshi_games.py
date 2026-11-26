@@ -6,7 +6,7 @@ import unicodedata
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from ..venue.public import _dollars
+from ..venue.public import _dollars, _ts
 from .leagues import LEAGUES
 
 ET = ZoneInfo("America/New_York")
@@ -47,7 +47,7 @@ def _quote(m: dict) -> dict:
             "sub": m.get("yes_sub_title") or "", "strike": m.get("floor_strike"),
             "yes_bid": float(yb) if yb else None, "yes_ask": float(ya) if ya else None,
             "volume": m.get("volume_fp") or m.get("volume") or 0, "oi": m.get("open_interest_fp") or m.get("open_interest") or 0,
-            "close_ts": m.get("close_time")}
+            "close_ts": _ts(m.get("close_time"))}
 
 
 def fetch_series(public, series: str, max_pages: int = 4) -> list[dict]:

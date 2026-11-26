@@ -9,6 +9,8 @@ import threading
 import time
 from pathlib import Path
 
+from ..venue.public import _ts
+
 PRIOR = 100          # a bucket needs this many graded picks to get half weight on its own record
 
 
@@ -46,6 +48,8 @@ class Track:
         """Settle pending picks whose market has closed.  Bounded per call so it never stalls a refresh."""
         now, calls, changed = time.time(), 0, False
         for r in list(self.rows.values()):
+            if isinstance(r["close_ts"], str):  # rows logged before close_ts was parsed held the raw ISO string
+                r["close_ts"] = _ts(r["close_ts"])
             if r["result"] is not None or (r["close_ts"] and r["close_ts"] > now) or calls >= max_calls:
                 continue
             calls += 1
