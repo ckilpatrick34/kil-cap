@@ -39,7 +39,7 @@
     </div>
   </section>
   <nav class="tabs" id="tabs" aria-label="Pages">
-    <a href="?" data-tab="book">The Book</a><a href="?view=board" data-tab="board">Game board</a><a href="?view=live" data-tab="live">Live <span class="count" id="liveCount"></span></a><a href="?view=results" data-tab="results">Results</a>
+    <a href="?" data-tab="book">The Book</a><a href="?view=board" data-tab="board">Game board</a><a href="?view=live" data-tab="live">Live <span class="count" id="liveCount"></span></a><a href="?view=ufc" data-tab="ufc">UFC <span class="count" id="ufcCount"></span></a><a href="?view=results" data-tab="results">Results</a>
     <a href="?view=crypto" data-tab="crypto">Crypto</a><a href="?view=ledger" data-tab="ledger">Model ledger</a>
     <a href="?view=learn" data-tab="learn">Learning log <i class="dot" id="learnDot"></i></a><a class="more" href="?view=how" data-tab="how">How it works →</a>
   </nav>
@@ -174,6 +174,11 @@
   </section>
   </div>
 
+  <div data-pane="ufc" hidden>
+    <section class="panel"><div class="phead"><h2>UFC</h2><span class="muted small">Vegas line, Kil Cap line and a call on every fight</span></div>
+      <div id="ufc"></div></section>
+  </div>
+
   <div data-pane="crypto" hidden>
     <section class="panel">
       <div class="phead"><h2>Crypto bets</h2>
@@ -224,5 +229,6 @@
 <dialog id="drawer"><div id="drawerBody"></div><form method="dialog"><button class="close" aria-label="Close">×</button></form></dialog>
 <script src="app.js" defer></script>
 <script src="live.js" defer></script>
+<script src="ufc.js" defer></script>
 </body>
 </html>
