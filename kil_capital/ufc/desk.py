@@ -211,9 +211,9 @@ class UfcDesk:
         elif pa_v is None:
             reason, label = "No Vegas line yet, so nothing to check our price against", "No bet"
         elif best is None:
-            reason, label = "Kalshi has not listed this fight yet", "No bet"
+            reason, label = "Not on Kalshi yet, so there is nowhere to place it", "No bet"
         elif best["edge"] < MIN_GAP:
-            reason, label = f"Kalshi price is fair (best gap {best['edge'] * 100:+.0f}c, need +{MIN_GAP * 100:.0f}c)", "No bet"
+            reason, label = f"Kalshi is no cheaper than the Vegas line (best gap {best['edge'] * 100:+.0f}c, need +{MIN_GAP * 100:.0f}c)", "No bet"
         elif best["edge"] > MAX_GAP:
             reason, label = "Gap too big to trust (stale price or wrong match)", "No bet"
         elif not (LO <= best["price"] <= HI):
@@ -225,7 +225,7 @@ class UfcDesk:
             pick = {**pick, "side": s, "name": f[s]["name"], "win_pct": round(best["p"], 4), "contracts": n,
                     "edge": best["edge"], "price": best["price"],
                     "stake": round(n * best["cost"], 2), "ticker": f[s].get("ticker")}
-            reason, label = f"Kalshi {best['price'] * 100:.0f}c vs fair {best['p'] * 100:.0f}c after fee", "BET"
+            reason, label = f"Beats Vegas: {best['price'] * 100:.0f}c on Kalshi after fee vs {best['p'] * 100:.0f}c Vegas fair price", "BET"
         if label == "BET":
             conf = "High" if pick["edge"] >= 0.06 else "Medium"
         elif f["state"] != "pre":

@@ -82,7 +82,7 @@ def test_fair_price_no_bet(tmp_path):
     f = out["fights"][0]
     assert f["a"]["vegas"] == -130 and f["b"]["vegas"] == 110
     assert f["a"]["ticker"] and f["b"]["ticker"]
-    assert f["pick"]["label"] == "No bet" and "fair" in f["pick"]["reason"]
+    assert f["pick"]["label"] == "No bet" and "no cheaper than the Vegas line" in f["pick"]["reason"]
     assert f["kil_line"]["a"] is not None and f["a"]["ufc_record"] == "2-0"
     json.dumps(out)
 

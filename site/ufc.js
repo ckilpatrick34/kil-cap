@@ -1,4 +1,5 @@
-// UFC tab: every upcoming UFC fight with the Vegas line, the Kil Cap line and a BET / No bet call.
+// UFC tab: Kil Cap vs Vegas on every upcoming UFC fight, with a BET / No bet call.
+// The goal is beating the sportsbooks; Kalshi is only where a bet gets placed.
 // Data: state.json "ufc" block from kil_capital/ufc/desk.py. Uses app.js globals ($, esc, pct, cents, usd, startsIn).
 // Recommend-only: nothing here places an order.
 "use strict";
@@ -34,11 +35,11 @@ window.renderUfc = function renderUfc() {
   const r = (o) => (o?.n ? `${o.right}-${o.n - o.right} (${pct(o.right / o.n, 0)})` : "none yet");
   const sum = `<div class="ufc-sum">
     <div><span>Bets on this card</span><b>${bets.length}</b><small>${usd(bets.reduce((a, f) => a + (f.pick.stake || 0), 0), 2)} at risk, $10 max a bet</small></div>
-    <div><span>Backtest: picks the winner</span><b>${pct(bt.model_right, 0)}</b><small>Vegas favourite ${pct(bt.vegas_right, 0)} on ${bt.fights ?? "–"} unseen fights</small></div>
-    <div><span>Live record, Kil Cap side</span><b>${esc(r(rec.model))}</b><small>Vegas favourite ${esc(r(rec.vegas))}</small></div>
+    <div><span>Kil Cap vs Vegas, backtest</span><b>${pct(bt.model_right, 0)} vs ${pct(bt.vegas_right, 0)}</b><small>winners picked on ${bt.fights ?? "–"} unseen fights</small></div>
+    <div><span>Kil Cap vs Vegas, live</span><b>${esc(r(rec.model))}</b><small>Vegas ${esc(r(rec.vegas))}</small></div>
     <div><span>Paper bets graded</span><b>${rec.bets?.n ? usd(rec.bets.pl, 2) : "–"}</b><small>${rec.bets?.n ? `${rec.bets.won}-${rec.bets.n - rec.bets.won} on ${usd(rec.bets.staked, 2)} staked` : "none settled yet"}</small></div>
   </div>
-  <p class="small muted ufc-note">Our model alone picks fewer winners than Vegas and lost about ${pct(-(bt.model_return ?? 0.1), 0)} betting against the closing line in the backtest, so Vegas is the anchor. A <b>BET</b> appears only when Kalshi sells a fighter at least 3¢ under the fair price after its fee. Most fights will say <b>No bet</b>, and that is the point.</p>`;
+  <p class="small muted ufc-note">The goal is to beat the sportsbooks. Kalshi is only where the bet gets placed. Our model alone picks fewer winners than Vegas and lost about ${pct(-(bt.model_return ?? 0.1), 0)} betting against the closing line in the backtest, so the Vegas line is the bar. A <b>BET</b> appears only when Kalshi sells a fighter at least 3¢ cheaper than the Vegas fair price, after Kalshi's fee. Most fights will say <b>No bet</b>, and that is the point.</p>`;
   if (!fights.length) {
     el.innerHTML = sum + `<p class="empty">No UFC fights in the next two weeks.</p>`;
     return;
@@ -62,18 +63,18 @@ function ufcCard(f) {
   const hasV = a.vegas != null && b.vegas != null;
   const gap = hasV && f.vegas_p ? (a.p_model - f.vegas_p.a) : null;
   const gapTxt = gap == null ? "" : Math.abs(gap) < 0.005 ? "even" : `${pct(Math.abs(gap), 0)} more on ${gap > 0 ? ufcLast(a.name) : ufcLast(b.name)}`;
-  const ln = `<div class="ln"><span>Vegas line</span>${hasV ? `<b>${ufcLast(a.name)} ${ufcMl(a.vegas)}</b><b>${ufcLast(b.name)} ${ufcMl(b.vegas)}</b>` : `<em>not posted yet</em>`}
-    <span class="kc">Kil Cap line</span><b class="kc">${ufcLast(a.name)} ${ufcMl(f.kil_line?.a)}</b><b class="kc">${ufcLast(b.name)} ${ufcMl(f.kil_line?.b)}</b>
-    <span>Kalshi</span><i>${a.yes_ask != null ? cents(a.yes_ask) : "–"}</i><i>${b.yes_ask != null ? cents(b.yes_ask) : "–"}</i>${gap == null ? "" : `<span>Gap</span><i style="grid-column:2/4">${gapTxt}</i>`}</div>`;
+  const ln = `<div class="ln"><span class="kc">Kil Cap line</span><b class="kc">${ufcLast(a.name)} ${ufcMl(f.kil_line?.a)}</b><b class="kc">${ufcLast(b.name)} ${ufcMl(f.kil_line?.b)}</b>
+    <span>Vegas line</span>${hasV ? `<b>${ufcLast(a.name)} ${ufcMl(a.vegas)}</b><b>${ufcLast(b.name)} ${ufcMl(b.vegas)}</b>` : `<em>not posted yet</em>`}
+    <span>Place on Kalshi</span><i>${a.yes_ask != null ? cents(a.yes_ask) : "–"}</i><i>${b.yes_ask != null ? cents(b.yes_ask) : "–"}</i>${gap == null ? "" : `<span>Kil Cap vs Vegas</span><i style="grid-column:2/4">${gapTxt}</i>`}</div>`;
   const bet = p.label === "BET"
-    ? `<b>BET: ${esc(p.name)} to win</b> <span class="muted">Buy <span class="side-yes">YES</span> at ${cents(p.price)}, ${p.contracts} contracts</span>`
+    ? `<b>BET: ${esc(p.name)} to win</b> <span class="muted">Place on Kalshi: buy <span class="side-yes">YES</span> at ${cents(p.price)}, ${p.contracts} contracts</span>`
     : `<b>No bet</b> <span class="muted">· our side: ${esc(p.name)}</span>`;
   const n = (k, v, cls = "") => `<span><small>${k}</small><b class="${cls}">${v}</b></span>`;
   return `<article class="pcard ufc ${lv}${p.label === "BET" ? " on" : ""}">
     <header><span class="tag">UFC</span><span class="muted small">${esc(f.wc || "")}${f.rounds ? ` · ${f.rounds} rds` : ""} · ${f.state === "pre" ? startsIn(f.start) : esc(f.status || "")}</span><span class="lvl ${lv}">${esc(p.conf || "")}</span></header>
     <div class="mu">${t(a)}<i>vs</i>${t(b)}</div>${ln}
     <div class="pbet">${bet}</div>
-    <div class="pnums">${n("Win chance", pct(p.win_pct, 0), p.win_pct >= 0.55 ? "pos" : "")}${n("Edge", p.edge == null ? "–" : pct(p.edge, 1, true), p.edge == null ? "muted" : p.edge > 0 ? "pos" : "neg")}${n("Bet", p.label === "BET" ? usd(p.stake, 2) : "–", p.label === "BET" ? "" : "muted")}</div>
+    <div class="pnums">${n("Win chance", pct(p.win_pct, 0), p.win_pct >= 0.55 ? "pos" : "")}${n("Edge vs Vegas", p.edge == null ? "–" : pct(p.edge, 1, true), p.edge == null ? "muted" : p.edge > 0 ? "pos" : "neg")}${n("Bet", p.label === "BET" ? usd(p.stake, 2) : "–", p.label === "BET" ? "" : "muted")}</div>
     <footer><span class="why">${esc(p.reason || "")}</span></footer>
   </article>`;
 }
