@@ -481,44 +481,93 @@ $("#sports").addEventListener("click", (e) => {
   }
 });
 
-// ---------- Top 5 ----------
-function renderTop5() {
-  if (!S) return;
-  const ps = picks()
-    .filter((p) => p.slate)
-    .slice(0, 5);
-  $("#top5").innerHTML = ps.length
-    ? ps
-        .map(
-          (p, i) => `<button class="card" data-t="${esc(p.ticker)}">
-      <span class="cardtop"><span class="tag">${esc(p.desk === "crypto" ? "CRYPTO" : p.league)}</span><span class="muted small">#${i + 1} · ${startsIn(p.start || p.close)}</span></span>
-      <b>${esc(p.title)}</b>
-      <span class="small">${p.desk === "crypto" ? esc(cryptoAction(p)) : `Buy <span class="side-${p.side}">${p.side.toUpperCase()}</span> at ${cents(p.price)}`}</span>
-      <span class="cardnums"><span><small>Win</small>${pct(p.fair, 0)}</span><span><small>Edge</small><i class="pos">${pct(p.edge, 1, true)}</i></span><span><small>Stake</small>${usd(p.stake, 2)}</span></span>
-    </button>`,
-        )
-        .join("")
-    : `<p class="empty">No bet clears the bar for this sport and day. Every game below still has our call.</p>`;
+// ---------- pick cards ----------
+// One card per game: the pick in plain words, confidence, and the three numbers that matter.
+const VKEY = "kil-view";
+let VIEW = (() => { try { return localStorage.getItem(VKEY) || "cards"; } catch { return "cards"; } })();
+function setView(v) {
+  VIEW = v;
+  try { localStorage.setItem(VKEY, v); } catch {}
+  for (const b of document.querySelectorAll("#pView button")) b.setAttribute("aria-selected", b.dataset.v === v);
+  $("#cards").hidden = v !== "cards";
+  $("#tableView").hidden = v !== "table";
 }
-$("#top5").addEventListener("click", (e) => {
+$("#pView").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-v]");
+  if (b) setView(b.dataset.v);
+});
+// "Bears at Lions: DET to win YES" -> { game: "Bears at Lions", bet: "DET wins" }
+function plainBet(p) {
+  if (p.desk === "crypto") return { game: p.title, bet: cryptoAction(p) };
+  const i = (p.title || "").lastIndexOf(": ");
+  const game = i > 0 ? p.title.slice(0, i) : p.title;
+  let bet = i > 0 ? p.title.slice(i + 2).replace(/ (YES|NO)$/, "") : "";
+  const no = p.side === "no";
+  if (!bet) return { game, bet: `Buy ${p.side.toUpperCase()}` };
+  bet = bet
+    .replace(/^(.+) to win$/, no ? "$1 loses" : "$1 wins")
+    .replace(/^(.+) wins by (.+)\+$/, no ? "$1 does not win by $2+" : "$1 wins by $2+")
+    .replace(/^Total over /, no ? "Total under " : "Total over ")
+    .replace(/^(.+) over (.+) pts$/, no ? "$1 under $2 pts" : "$1 over $2 pts");
+  return { game, bet };
+}
+const LV_SHORT = {
+  high: "Bet. Clears every check.",
+  medium: "Bet, smaller. Clears the checks on thinner data.",
+  lean: "No bet. Small edge, not enough after the fee.",
+  low: "No bet. No edge after the fee.",
+  live: "Started. This was our pre-game call.",
+};
+function pickCard(p, i) {
+  const lv = level(p), { game, bet } = plainBet(p);
+  const tm = teamsOf(p)
+    .map((t) => `${t.rank ? `<span class="rk">#${t.rank}</span>` : ""}${esc(t.abbr || t.name)}`)
+    .join(" @ ");
+  const leg = p.game_id && p.price != null
+    ? `<label class="pleg"><input type="checkbox" data-leg="${esc(p.ticker)}" ${legs.has(p.ticker) ? "checked" : ""}> Parlay</label>` : "";
+  const n = (k, v, cls = "") => `<span><small>${k}</small><b class="${cls}">${v}</b></span>`;
+  return `<article class="pcard ${lv}${p.slate ? " on" : ""}" data-t="${esc(p.ticker)}" tabindex="0">
+    <header><span class="tag">${esc(p.desk === "crypto" ? "CRYPTO" : p.league)}</span><span class="muted small">${p.slate ? `#${i + 1} · ` : ""}${tm || esc(game)} · ${startsIn(p.start || p.close)}</span>
+      <span class="lvl ${lv}" title="${esc(LV_WHY[lv])} Data grade ${esc(p.confidence)}.">${LV[lv]}</span></header>
+    <div class="pbet"><b>${esc(bet)}</b>${p.price != null ? `<span class="muted"> · buy <span class="side-${p.side}">${p.side.toUpperCase()}</span> at ${cents(p.price)}</span>` : ""}</div>
+    <div class="pnums">${n("Win chance", pct(p.fair, 0), p.fair >= WIN_MIN ? "pos" : "")}${n("Edge", pct(p.edge, 1, true), p.edge == null ? "muted" : p.edge > 0 ? "pos" : "neg")}${
+      p.slate ? n("Bet", usd(p.stake, 2)) + n("Exp. profit", usd(p.exp_profit, 2), "pos") : n("Bet", "–", "muted")}</div>
+    <footer><span class="muted small">${LV_SHORT[lv]}${p.slate ? ` ${p.count} contracts.` : ""}</span>${leg}</footer>
+  </article>`;
+}
+function renderCards(ps) {
+  const on = ps.filter((p) => p.slate), off = ps.filter((p) => !p.slate);
+  const sec = (h, list, start = 0) => list.length
+    ? `<h3 class="psec">${h} <span class="count">(${list.length})</span></h3><div class="pgrid">${list.map((p, i) => pickCard(p, i + start)).join("")}</div>` : "";
+  $("#cards").innerHTML = ps.length
+    ? sec("Bets to place", on) + sec("Our call on every other game", off)
+    : `<p class="empty">No game matches these filters right now.</p>`;
+  if (!on.length && ps.length)
+    $("#cards").insertAdjacentHTML("afterbegin", `<p class="empty">No bet clears the bar for this sport and day. Every game still has our call below.</p>`);
+}
+$("#cards").addEventListener("change", (e) => {
+  const t = e.target.dataset?.leg;
+  if (t) toggleLeg(t, e.target.checked);
+});
+$("#cards").addEventListener("click", (e) => {
+  if (e.target.closest(".pleg")) return;
   const c = e.target.closest("[data-t]");
   if (c) openPick(c.dataset.t);
 });
+$("#cards").addEventListener("keydown", (e) => {
+  const c = e.target.closest("[data-t]");
+  if (c && e.key === "Enter") openPick(c.dataset.t);
+});
+function renderTop5() {} // snip: Top 5 strip folded into the ranked cards
 
 function renderKpis() {
   if (!S) return;
-  const ps = picks(),
-    all = plan(),
-    on = all.filter((p) => p.slate); // slate KPIs match "Your slate", not the table filters
+  const all = plan(),
+    on = all.filter((p) => p.slate); // slate KPIs match "Your slate", not the filters
   const ev = on.reduce((a, p) => a + p.exp_profit, 0),
     stake = on.reduce((a, p) => a + p.stake, 0);
-  const ed = ps.filter((p) => p.edge != null);
-  const avgEdge = ed.length
-    ? ed.reduce((a, p) => a + p.edge, 0) / ed.length
-    : null;
   const t = S.track?.total || {},
     roiTrack = trackRoi();
-  const promoted = (S.learn?.log || []).filter((r) => r.promoted).length;
   const k = [
     [
       "Bets on your slate",
@@ -533,18 +582,12 @@ function renderKpis() {
       usd(stake, 2),
       `${pct(stake / U().bankroll, 0)} of your bankroll · budget ${usd(U().budget)}`,
     ],
-    ["Avg edge after fee", pct(avgEdge, 1), "fair minus cost"],
     [
       "Track record",
       t.graded ? `${t.wins}-${t.graded - t.wins}` : "–",
       t.graded
-        ? `won ${pct(t.wins / t.graded, 0)} · ROI ${pct(roiTrack, 1, true)} · ${t.pending} pending`
+        ? `won ${pct(t.wins / t.graded, 0)} · return ${pct(roiTrack, 1, true)} · ${t.pending} pending`
         : `${t.pending ?? 0} pending, none settled yet`,
-    ],
-    [
-      "Model",
-      promoted ? `${promoted} promoted` : "Champions held",
-      "nightly, unseen games only",
     ],
   ];
   $("#kpis").innerHTML = k
@@ -608,6 +651,7 @@ function renderPicks(flash = false) {
     })
     .join("");
   lastPrices = new Map(ps.map((p) => [p.ticker, p.price]));
+  renderCards(ps);
 }
 
 $("#blotter").addEventListener("change", (e) => {
@@ -1122,15 +1166,13 @@ function renderPlan() {
       <div><span>Watch only</span><b>${all.length - on.length}</b></div></div>
     ${
       on.length
-        ? `<div class="tablewrap"><table><thead><tr><th>Bet</th><th class="r">Price</th><th class="r">Win chance</th>
-      <th class="r">Contracts</th><th class="r">Stake</th><th class="r">Starts</th></tr></thead><tbody>
+        ? `<div class="tablewrap"><table><thead><tr><th>Bet</th><th class="r">Price</th><th class="r">Win</th><th class="r">Stake</th></tr></thead><tbody>
       ${on
         .map(
           (
             p,
-          ) => `<tr data-t="${esc(p.ticker)}" tabindex="0"><td><span class="tag">${esc(p.desk === "crypto" ? "CRYPTO" : p.league)}</span>${esc(p.desk === "crypto" ? cryptoAction(p) : p.title)}</td>
-        <td class="r">${cents(p.price)}</td><td class="r">${pct(p.fair, 0)}</td><td class="r">${p.count}</td><td class="r">${usd(p.stake, 2)}</td>
-        <td class="r">${startsIn(p.start || p.close)}</td></tr>`,
+          ) => `<tr data-t="${esc(p.ticker)}" tabindex="0"><td class="wrap"><span class="tag">${esc(p.desk === "crypto" ? "CRYPTO" : p.league)}</span><b>${esc(plainBet(p).bet)}</b><br><small class="muted">${esc(plainBet(p).game)}</small></td>
+        <td class="r">${cents(p.price)}</td><td class="r">${pct(p.fair, 0)}</td><td class="r">${usd(p.stake, 2)}</td></tr>`,
         )
         .join("")}</tbody></table></div>`
         : `<p class="empty">${room < 1 ? "Your budget is fully used by open bets." : "No bet clears the bar right now."}</p>`
@@ -1415,6 +1457,8 @@ addEventListener("popstate", () => {
   showTab(TAB);
   if (S) update();
 });
+
+setView(VIEW);
 
 // ---------- theme ----------
 (function theme() {

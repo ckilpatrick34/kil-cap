@@ -56,18 +56,17 @@
     </div>
   </section>
 
-  <section aria-label="Top 5">
-    <div class="sechead"><h2>Top 5</h2><a class="link" href="#picksPanel">All picks ↓</a></div>
-    <div class="top5" id="top5"></div>
-  </section>
 
   <section class="kpis" id="kpis" aria-label="Summary"></section>
 
   <section class="grid">
     <div class="panel picks" id="picksPanel">
-      <div class="phead"><h2>Recommended bets <span class="count" id="pickCount"></span></h2>
-        <a class="link" href="#boardPanel">Every game ↓</a></div>
-      <div class="tablewrap">
+      <div class="phead"><h2>Today's picks <span class="count" id="pickCount"></span></h2>
+        <div class="seg" id="pView" role="group" aria-label="View"><button data-v="cards">Cards</button><button data-v="table">Table</button></div></div>
+      <p class="legend small"><span class="lvl high">High</span> <span class="lvl medium">Medium</span> bet these: they clear every check.
+        <span class="lvl lean">Lean</span> <span class="lvl low">Low</span> our side of the game, but no bet. Tap any pick for the full ticket.</p>
+      <div id="cards" class="pcards"></div>
+      <div class="tablewrap" id="tableView" hidden>
         <table class="blotter" id="blotter">
           <thead><tr>
             <th class="c" title="Add to parlay">+</th><th>#</th><th>Pick</th><th class="r">Price</th><th class="r">Win chance</th><th class="r">Edge</th>
@@ -104,12 +103,13 @@
     </aside>
   </section>
 
-  <section class="panel" id="boardPanel">
-    <div class="phead"><h2>Every game <span class="count" id="boardCount"></span></h2><span class="muted small">Our call on every game and the best side of each market, even with no edge. Follows the sport, day and search above.</span></div>
+  <details class="panel" id="boardPanel">
+    <summary class="phead"><h2>Full market detail: every side of every game <span class="count" id="boardCount"></span></h2></summary>
+    <div class="phead"><span class="muted small">Our call on every game and the best side of each market, even with no edge. Follows the sport, day and search above.</span></div>
     <div class="tablewrap"><table id="board"><thead><tr><th>Game</th><th>Best side</th><th class="r">Our chance</th><th class="r" title="Sportsbook chance with the vig removed">Vegas</th>
       <th class="r">Kalshi bid / ask</th><th class="r" title="Our fair price for the side shown">Fair</th><th class="r">Edge</th><th class="r" title="Average profit or loss if you bet $10 at this price, after Kalshi's fee">Per $10</th><th>Our call</th></tr></thead><tbody></tbody></table></div>
     <p class="small muted pad">BET: passes every check and is on your slate (click for the ticket). No bet: no edge after Kalshi's fee, an edge too small to clear the bar, or our model and Vegas disagree. Per $10 is the average result of betting the side shown anyway. No-bet rows never count toward your budget or the Autotracker.</p>
-  </section>
+  </details>
 
   <details class="panel">
     <summary class="phead"><h2>Game slate: our margin and total vs the book</h2></summary>
@@ -131,6 +131,19 @@
   <section class="panel">
     <div class="phead"><h2>Track record</h2><span class="muted small">Every pick is logged at the price we'd have paid, then graded on settlement. Records are kept per sport.</span></div>
     <div id="track"></div>
+  </section>
+  <section class="panel" id="lab">
+    <div class="phead"><h2>Strategy lab</h2><span class="muted small">Each rule was tuned on earlier seasons, then scored once on later seasons it never saw. Numbers below are those later seasons only.</span></div>
+    <div class="tablewrap"><table class="lab"><thead><tr><th>Strategy</th><th class="r">Win rate</th><th class="r">Return</th><th class="r">Bets</th><th>Verdict</th></tr></thead><tbody>
+      <tr><td>NFL spread: our rating disagrees with the <b>opening</b> line by 3+ pts</td><td class="r">55.9%</td><td class="r pos">+6.7%</td><td class="r">390</td><td><span class="lvl high">Best new lead</span></td></tr>
+      <tr><td>NBA total: our scoring model disagrees with the <b>opening</b> total by 8.5+ pts</td><td class="r">55.4%</td><td class="r pos">+5.8%</td><td class="r">489</td><td><span class="lvl high">Strong lead</span></td></tr>
+      <tr><td>NFL: wind 15+ mph outdoors, bet the under</td><td class="r">55.4%</td><td class="r pos">+5.8%</td><td class="r">267</td><td><span class="lvl medium">Real, but thin</span></td></tr>
+      <tr><td>NFL: Sunday and Monday night games, bet the under</td><td class="r">53.2%</td><td class="r pos">+3.3%</td><td class="r">491</td><td><span class="lvl lean">Small edge</span></td></tr>
+      <tr><td>NHL moneyline: our rating beats the opening price by 10%+</td><td class="r">37.5%</td><td class="r pos">+3.6%</td><td class="r">530</td><td><span class="lvl lean">Mostly dogs, noisy</span></td></tr>
+      <tr><td>Same rating systems against the <b>closing</b> line (NFL, NBA, NHL, MLB)</td><td class="r">35 to 53%</td><td class="r neg">-8% to +1%</td><td class="r">1,000s</td><td><span class="lvl low">No edge</span></td></tr>
+      <tr><td>West-coast teams at 1 PM ET, Thursday-night unders, bye weeks, freezing-game unders, playoff home favourites</td><td class="r">47 to 49%</td><td class="r neg">-4% to -9%</td><td class="r">120 to 330 each</td><td><span class="lvl low">Failed on new seasons</span></td></tr>
+    </tbody></table></div>
+    <p class="small muted labnote">How to read it: <b>win rate</b> is how often the bet won; <b>return</b> is profit per $1 staked at the price actually listed, after the vig. A spread or total bet needs about 52.4% to break even; a moneyline needs whatever the price implies, so an underdog rule can win 38% and still make money. The pattern across every sport: the edge lives at the <b>opening</b> line and is gone by the close, so these work only if you get in early. About 40 rules were tested this round, so one or two positives are expected by luck. Treat leads as worth paper-tracking first.</p>
   </section>
   </div>
 
