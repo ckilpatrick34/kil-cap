@@ -360,10 +360,11 @@ function renderBook() {
   $("#bkOpen").innerHTML = open.length
     ? open.map((b) => {
         const { game, bet } = bookBet(b), live = Date.parse(b.start) < Date.now();
+        const mu = matchup(gameFor(null, b.title, b.league));
         const mv = b.last_mid != null && b.price != null ? b.last_mid - b.price : null;
         return `<article class="bk">
-          <div class="bk-top">${bookSlv(b.sleeve)}<span class="tag">${esc(b.league)}</span><span class="muted small bk-game">${esc(game)}</span><span class="bk-when ${live ? "live" : ""}">${live ? "Live" : startsIn(b.start)}</span></div>
-          <div class="bk-bet"><b>${esc(bet || game)}</b><span class="bk-amt">${usd(b.cost, 2)}</span></div>
+          <div class="bk-top">${bookSlv(b.sleeve)}<span class="tag">${esc(b.league)}</span><span class="muted small bk-game">${mu ? "" : esc(game)}</span><span class="bk-when ${live ? "live" : ""}">${live ? "Live" : startsIn(b.start)}</span></div>
+          ${mu}<div class="bk-bet"><b>${esc(bet || game)}</b><span class="bk-amt">${usd(b.cost, 2)}</span></div>
           <div class="muted small">Buy <span class="side-${b.side}">${b.side.toUpperCase()}</span> at ${cents(b.price)} · ${b.count} contracts · pays ${usd(b.count, 0)} if it wins${mv != null && Math.abs(mv) >= 0.01 ? ` · now ${cents(b.last_mid)} <span class="${mv > 0 ? "pos" : "neg"}">${mv > 0 ? "▲" : "▼"}</span>` : ""}</div>
           <p class="bk-why">${esc(b.why)}</p>
         </article>`;
@@ -397,6 +398,7 @@ function renderBook() {
 function render() {
   $("#bankroll").textContent = usd(U().bankroll);
   renderSettings();
+  GMAP = new Map((S.games || []).map((g) => [g.id, g]));
   BOOKT = new Map([...(S.games || []).flatMap((g) => (g.contracts || []).filter((c) => c.book_sleeve).map((c) => [c.ticker, c.book_sleeve])), ...(S.book?.open || []).map((b) => [b.ticker, b.sleeve])]);
   renderBook();
   renderFilters();
@@ -589,7 +591,29 @@ const LV_SHORT = {
   low: "No bet. No edge after the fee.",
   live: "Started. This was our pre-game call.",
 };
-let BOOKT = new Map();
+let BOOKT = new Map(), GMAP = new Map();
+const gameFor = (id, title, league) =>
+  GMAP.get(id) || (S.games || []).find((g) => g.league === league && (title || "").startsWith(`${g.away?.abbr} @ ${g.home?.abbr}`));
+function matchup(g) {
+  if (!g?.home || !g?.away) return "";
+  const t = (x) => `<span class="tm">${x.logo ? `<img src="${esc(x.logo)}" alt="" loading="lazy" onerror="this.remove()">` : ""}<b>${x.rank ? `<span class="rk">${x.rank}</span>` : ""}${esc(x.abbr || x.short)}</b><small>${esc(x.record || "")}</small></span>`;
+  return `<div class="mu">${t(g.away)}<i>at</i>${t(g.home)}</div>${lines(g)}`;
+}
+// Vegas line (sportsbook) beside the Kil Cap line (our model's own number). Margins are home minus away.
+const spreadTxt = (g, m) => (m == null ? "–" : Math.abs(m) < 0.05 ? "Pick'em" : `${esc((m > 0 ? g.home : g.away).abbr)} -${Math.abs(m).toFixed(1)}`);
+const totalTxt = (t) => (t == null ? "–" : `O/U ${(+t).toFixed(1)}`);
+function lines(g) {
+  const k = g?.model, v = g?.book;
+  if (k?.margin == null && k?.total == null) return "";
+  const has = v?.margin != null || v?.total != null;
+  const dm = has && v.margin != null && k.margin != null ? k.margin - v.margin : null;
+  const dt = has && v.total != null && k.total != null ? k.total - v.total : null;
+  const gm = dm == null ? "–" : Math.abs(dm) < 0.05 ? "even" : `${Math.abs(dm).toFixed(1)} ${esc((dm > 0 ? g.home : g.away).abbr)}`;
+  const gt = dt == null ? "–" : Math.abs(dt) < 0.05 ? "even" : `${Math.abs(dt).toFixed(1)} ${dt > 0 ? "over" : "under"}`;
+  return `<div class="ln"><span>Vegas line</span>${has ? `<b>${spreadTxt(g, v.margin)}</b><b>${totalTxt(v.total)}</b>` : `<em>not posted yet</em>`}
+    <span class="kc">Kil Cap line</span><b class="kc">${spreadTxt(g, k.margin)}</b><b class="kc">${totalTxt(k.total)}</b>${
+    has ? `<span>Gap</span><i>${gm}</i><i>${gt}</i>` : ""}</div>`;
+}
 function pickCard(p, i) {
   const lv = level(p), { game, bet } = plainBet(p);
   const tm = teamsOf(p)
@@ -598,10 +622,11 @@ function pickCard(p, i) {
   const leg = p.game_id && p.price != null
     ? `<label class="pleg"><input type="checkbox" data-leg="${esc(p.ticker)}" ${legs.has(p.ticker) ? "checked" : ""}> Parlay</label>` : "";
   const n = (k, v, cls = "") => `<span><small>${k}</small><b class="${cls}">${v}</b></span>`;
+  const mu = matchup(gameFor(p.game_id));
   return `<article class="pcard ${lv}${p.slate ? " on" : ""}" data-t="${esc(p.ticker)}" tabindex="0">
-    <header><span class="tag">${esc(p.desk === "crypto" ? "CRYPTO" : p.league)}</span><span class="muted small">${p.slate ? `#${i + 1} · ` : ""}${tm || esc(game)} · ${startsIn(p.start || p.close)}</span>
+    <header><span class="tag">${esc(p.desk === "crypto" ? "CRYPTO" : p.league)}</span><span class="muted small">${p.slate ? `#${i + 1} · ` : ""}${mu ? "" : (tm || esc(game)) + " · "}${startsIn(p.start || p.close)}</span>
       ${p.book_sleeve || BOOKT.get(p.ticker) ? bookSlv(p.book_sleeve || BOOKT.get(p.ticker)) : ""}<span class="lvl ${lv}" title="${esc(LV_WHY[lv])} Data grade ${esc(p.confidence)}.">${LV[lv]}</span></header>
-    <div class="pbet"><b>${esc(bet)}</b>${p.price != null ? `<span class="muted"> · buy <span class="side-${p.side}">${p.side.toUpperCase()}</span> at ${cents(p.price)}</span>` : ""}</div>
+    ${mu}<div class="pbet"><b>${esc(bet)}</b>${p.price != null ? `<span class="muted">Buy <span class="side-${p.side}">${p.side.toUpperCase()}</span> at ${cents(p.price)}</span>` : ""}</div>
     <div class="pnums">${n("Win chance", pct(p.fair, 0), p.fair >= WIN_MIN ? "pos" : "")}${n("Edge", pct(p.edge, 1, true), p.edge == null ? "muted" : p.edge > 0 ? "pos" : "neg")}${
       p.slate ? n("Bet", usd(p.stake, 2)) + n("Exp. profit", usd(p.exp_profit, 2), "pos") : n("Bet", "–", "muted")}</div>
     <footer><span class="muted small">${LV_SHORT[lv]}${p.slate ? ` ${p.count} contracts.` : ""}</span>${leg}</footer>
@@ -770,10 +795,10 @@ function openPick(ticker) {
       g
         ? `<p class="small muted">${esc(g.name)} · ${esc(g.venue || "")} · ${startsIn(g.start)}</p>
       <div class="facts">
-        <div><span>Model margin</span><b>${m.margin ?? "–"}</b></div>
-        <div><span>Book margin</span><b>${g.book?.margin?.toFixed?.(1) ?? "–"}</b></div>
-        <div><span>Model total</span><b>${m.total ?? "–"}</b></div>
-        <div><span>Book total</span><b>${g.book?.total?.toFixed?.(1) ?? "–"}</b></div>
+        <div><span>Vegas line</span><b>${spreadTxt(g, g.book?.margin)}</b></div>
+        <div><span>Kil Cap line</span><b>${spreadTxt(g, m.margin)}</b></div>
+        <div><span>Vegas total</span><b>${totalTxt(g.book?.total)}</b></div>
+        <div><span>Kil Cap total</span><b>${totalTxt(m.total)}</b></div>
       </div>
       ${notes.length ? `<ul>${notes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>` : ""}
       ${m.weather ? `<p class="small muted">Weather: ${esc(typeof m.weather === "string" ? m.weather : JSON.stringify(m.weather))}</p>` : ""}`
@@ -1233,7 +1258,7 @@ function renderPlan() {
     room = Math.max(0, u.budget - u.open);
   $("#slatePlan").innerHTML = `<div class="trackhead">
       <div><span>Bets</span><b>${on.length}</b></div>
-      <div><span>Total stake</span><b>${usd(used, 2)}</b><small class="muted">of ${usd(room, 0)} free budget</small></div>
+      <div><span>Total stake</span><b>${usd(used, 2)}</b><small class="muted"> of ${usd(room, 0)} budget</small></div>
       <div><span>Expected profit</span><b class="${ev > 0 ? "pos" : ""}">${usd(ev, 2)}</b></div>
       <div><span>Watch only</span><b>${all.length - on.length}</b></div></div>
     ${
@@ -1536,16 +1561,16 @@ setView(VIEW);
 (function theme() {
   let saved = null;
   try {
-    saved = localStorage.getItem("kil-theme");
+    saved = localStorage.getItem("kil-theme2");
   } catch {}
   if (saved) document.documentElement.dataset.theme = saved;
   $("#theme").onclick = () => {
     const dark = document.documentElement.dataset.theme
       ? document.documentElement.dataset.theme === "dark"
-      : matchMedia("(prefers-color-scheme: dark)").matches;
+      : true;
     document.documentElement.dataset.theme = dark ? "light" : "dark";
     try {
-      localStorage.setItem("kil-theme", document.documentElement.dataset.theme);
+      localStorage.setItem("kil-theme2", document.documentElement.dataset.theme);
     } catch {}
   };
 })();
