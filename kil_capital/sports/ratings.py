@@ -23,7 +23,9 @@ class Ratings:
     n: int = 0
 
 
-def fit(lg: League, games: list[dict], now_ts: float, lam: float = 2.0, iters: int = 60) -> Ratings:
+def fit(lg: League, games: list[dict], now_ts: float, lam: float = 2.0, iters: int = 60,
+        lam_total: float | None = None) -> Ratings:
+    lam_t = lg.lam_total if lam_total is None else lam_total   # scoring ratings need far more shrinkage than margin
     rows = []
     for g in games:
         hs, as_ = g["home"]["score"], g["away"]["score"]
@@ -77,7 +79,7 @@ def fit(lg: League, games: list[dict], now_ts: float, lam: float = 2.0, iters: i
                     no += w * (as_ - R.base + lg.hfa / 2 * home - d[h])
                     nd += w * (hs - R.base - lg.hfa / 2 * home - o[h])
                 den += w
-            o[t], d[t] = no / (den + lam), nd / (den + lam)
+            o[t], d[t] = no / (den + lam_t), nd / (den + lam_t)
     R.off, R.deff = o, d
     return R
 

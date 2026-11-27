@@ -196,3 +196,34 @@ def test_index_serves_v3_with_token(client):
     c, _ = client
     html = c.get("/").text
     assert "/static/v3.js" in html and "__KIL_TOKEN__" not in html
+
+
+def test_scoring_ratings_do_not_chase_noise():
+    """32 identical teams, 6 games each: every true total is the same, so projected totals must stay close
+    together.  With the margin model's weak ridge they spread ~7 points and LV @ CLE read 50.8 against 39.5."""
+    import random
+    import statistics
+    from kil_capital.sports import model as M
+    from kil_capital.sports.leagues import LEAGUES
+    from kil_capital.sports.ratings import fit
+    rng, lg, games = random.Random(7), LEAGUES["nfl"], []
+    teams = [str(i) for i in range(32)]
+    for wk in range(6):
+        rng.shuffle(teams)
+        for h, a in zip(teams[::2], teams[1::2]):
+            games.append({"home": {"id": h, "score": max(0, round(rng.gauss(22, 10)))},
+                          "away": {"id": a, "score": max(0, round(rng.gauss(22, 10)))},
+                          "start_ts": wk * 7 * 86400.0, "neutral": False})
+    R = fit(lg, games, 6 * 7 * 86400.0, lam=1.0)
+    totals = [M.project(lg, {"home": {"id": h, "abbr": h}, "away": {"id": a, "abbr": a}, "neutral": False,
+                             "start_ts": 6 * 7 * 86400.0, "indoor": True}, R)["total"]
+              for h in teams[:8] for a in teams[8:]]
+    assert statistics.pstdev(totals) < 3.0
+    assert max(totals) - min(totals) < 14.0
+
+
+def test_nfl_total_follows_the_book():
+    from kil_capital.sports import model as M
+    from kil_capital.sports.leagues import LEAGUES
+    b = M.blend(LEAGUES["nfl"], {"margin": 3.0, "total": 50.8}, {"margin": 1.0, "total": 39.5})
+    assert b["total"] == 39.5 and 1.0 < b["margin"] < 3.0

@@ -139,7 +139,8 @@ def book_view(lg: League, odds: dict | None) -> dict:
 def blend(lg: League, proj: dict, book: dict) -> dict:
     w = lg.w_model
     m = proj["margin"] if "margin" not in book else w * proj["margin"] + (1 - w) * book["margin"]
-    t = proj["total"] if "total" not in book else w * proj["total"] + (1 - w) * book["total"]
+    wt = w if lg.w_total is None else lg.w_total
+    t = proj["total"] if "total" not in book else wt * proj["total"] + (1 - wt) * book["total"]
     return {"margin": m, "total": t}
 
 
