@@ -31,7 +31,7 @@
   <section class="hero">
     <span class="eyebrow">The board / Recommend-only</span>
     <h1>Every game, priced.</h1>
-    <p>Vegas line, Kil Cap line and the gap between them. Paper money only.</p>
+    <p>The sportsbooks are the team to beat. Kalshi is just where the bet goes on. Paper money only.</p>
     <div class="status">
       <span class="feed" id="feed" title="Price feed"><i></i><b id="feedLabel">Loading</b></span>
       <span class="muted" id="updated">–</span>
@@ -62,7 +62,7 @@
     <div class="tiles" id="sports" role="group" aria-label="Sport"></div>
     <div class="actrow"><button class="pill sq" id="fullCard" title="Every game this week, all filters off">Full card</button>
       <select id="fSort" aria-label="Sort"><option value="profit">Overall rank</option><option value="start">Start time</option>
-        <option value="ranktime">Rank, then time</option><option value="edge">Raw edge</option><option value="win">Win chance</option></select></div>
+        <option value="ranktime">Rank, then time</option><option value="gap">Gap to Vegas</option><option value="edge">Value at Kalshi's price</option><option value="win">Win chance</option></select></div>
     <div class="row2">
       <div class="seg" id="when" role="group" aria-label="When">
         <button data-w="today">Today</button><button data-w="tomorrow">Tomorrow</button><button data-w="weekend">This weekend</button><button data-w="week">This week</button>
@@ -96,7 +96,7 @@
       <div class="tablewrap" id="tableView" hidden>
         <table class="blotter" id="blotter">
           <thead><tr>
-            <th class="c" title="Add to parlay">+</th><th>#</th><th>Pick</th><th class="r">Price</th><th class="r">Win chance</th><th class="r">Edge</th>
+            <th class="c" title="Add to parlay">+</th><th>#</th><th>Pick</th><th class="r">Kalshi price</th><th class="r">Kil Cap chance</th><th class="r" title="Our fair price minus Kalshi's price and fee">Value</th>
             <th class="c" title="High/Medium clear every check. Lean and Low are our call for the game, below the bar.">Confidence</th><th class="r">Stake</th><th class="r">Exp. profit</th><th class="r">Starts</th>
           </tr></thead>
           <tbody></tbody>
@@ -132,10 +132,10 @@
 
   <details class="panel" id="boardPanel">
     <summary class="phead"><h2>Full market detail: every side of every game <span class="count" id="boardCount"></span></h2></summary>
-    <div class="phead"><span class="muted small">Our call on every game and the best side of each market, even with no edge. Follows the sport, day and search above.</span></div>
-    <div class="tablewrap"><table id="board"><thead><tr><th>Game</th><th>Best side</th><th class="r">Our chance</th><th class="r" title="Sportsbook chance with the vig removed">Vegas</th>
-      <th class="r">Kalshi bid / ask</th><th class="r" title="Our fair price for the side shown">Fair</th><th class="r">Edge</th><th class="r" title="Average profit or loss if you bet $10 at this price, after Kalshi's fee">Per $10</th><th>Our call</th></tr></thead><tbody></tbody></table></div>
-    <p class="small muted pad">BET: passes every check and is on your slate (click for the ticket). No bet: no edge after Kalshi's fee, an edge too small to clear the bar, or our model and Vegas disagree. Per $10 is the average result of betting the side shown anyway. No-bet rows never count toward your budget or the Autotracker.</p>
+    <div class="phead"><span class="muted small">Our call on every game and the best side of each market, even with no value at the price. Follows the sport, day and search above.</span></div>
+    <div class="tablewrap"><table id="board"><thead><tr><th>Game</th><th>Best side</th><th class="r">Kil Cap</th><th class="r" title="Sportsbook chance with the vig removed">Vegas</th><th class="r" title="Kil Cap chance minus the Vegas chance. This is the number we are trying to be right about.">vs Vegas</th>
+      <th class="r" title="What the side costs on Kalshi, where the bet is placed">Kalshi bid / ask</th><th class="r" title="Our fair price minus Kalshi's price and fee">Value</th><th class="r" title="Average profit or loss if you bet $10 at this price, after Kalshi's fee">Per $10</th><th>Our call</th></tr></thead><tbody></tbody></table></div>
+    <p class="small muted pad">BET: passes every check and is on your slate (click for the ticket). No bet: Kalshi's price is too high to leave value after its fee, the value is too small to clear the bar, or our number is too far from Vegas to trust. vs Vegas is how much higher or lower we rate the side than the sportsbooks do. Per $10 is the average result of betting the side shown anyway. No-bet rows never count toward your budget or the Autotracker.</p>
   </details>
 
   <details class="panel">
@@ -149,7 +149,7 @@
   <div data-pane="live" hidden>
   <section class="panel">
     <div class="phead"><h2>Live betting</h2><span class="badge">Paper picks · recommend-only</span></div>
-    <p class="small muted lnote">In-game model: the score and clock, plus our pregame line for the points still to come, against Kalshi's price. It does not see possession or field position, so it leans half on the market. Prices here are from the last refresh a few minutes ago: check the live Kalshi price and only buy at or under the number shown.</p>
+    <p class="small muted lnote">In-game model: the score and clock, plus our pregame line for the points still to come. Kalshi's price is what the bet costs. It does not see possession or field position, so it leans half on the market. Prices here are from the last refresh a few minutes ago: check the live Kalshi price and only buy at or under the number shown.</p>
   </section>
   <div id="live"></div>
   </div>
@@ -212,10 +212,11 @@
     <section class="panel prose">
       <div class="phead"><h2>How it works</h2></div>
       <div class="pad">
-        <p><b>Our own model.</b> Opponent-adjusted team ratings for every league, refit on each run from completed games, blended with the sportsbook line. That gives a fair chance for every Kalshi winner, spread and total market.</p>
-        <p><b>Edge.</b> Fair chance minus what the contract costs you, after Kalshi's taker fee (7% × price × (1 − price)). Edges over 15% are held out, because they are almost always bad data rather than value.</p>
+        <p><b>Our own model.</b> Opponent-adjusted team ratings for every league, refit on each run from completed games, blended with the sportsbook line. That gives a fair chance for every winner, spread and total.</p>
+        <p><b>Who we are trying to beat.</b> The sportsbooks. Every game shows the Vegas line, the Kil Cap line and the gap between them, and every bet shows our chance next to the Vegas chance with the vig removed. The test of the model is whether it is right more often than that line.</p>
+        <p><b>Where the bet goes.</b> Kalshi. It is the place and the price, not the opponent. A side only becomes a bet when Kalshi's price, after its taker fee (7% × price × (1 − price)), is below our fair price. Gaps over 15% are held out, because they are almost always bad data rather than value.</p>
         <p><b>Ranking and stakes.</b> Overall rank is expected profit. Stakes are quarter-Kelly on your bankroll, capped by your max bet and your budget, one bet per game. Win-majority (55%+) is on by default.</p>
-        <p><b>Every game gets a call.</b> If a game has no bet, the board says why: no edge after the fee, edge too small, or our model and Vegas disagree.</p>
+        <p><b>Every game gets a call.</b> If a game has no bet, the board says why: Kalshi's price is too high, the value is too small, or our number is too far from Vegas to trust.</p>
         <p><b>Learning.</b> Each night, after 4 AM Central, a challenger model is tested on games it never saw. It replaces the champion only if it predicts better. Results are graded against the price we would have paid.</p>
         <p><b>Recommend-only.</b> This site cannot place orders and holds no keys. Research and paper results only, not financial advice.</p>
       </div>
@@ -223,7 +224,7 @@
   </div>
 
   <p class="errors" id="errors" hidden></p>
-  <footer>Research and paper results only, not financial advice. Prices from Kalshi public market data; stakes are quarter-Kelly on a <span id="bankroll">$100</span> bankroll, capped by your budget.</footer>
+  <footer>Research and paper results only, not financial advice. The benchmark is the sportsbook line; bets are priced on Kalshi public market data. Stakes are quarter-Kelly on a <span id="bankroll">$100</span> bankroll, capped by your budget.</footer>
 </main>
 
 <dialog id="drawer"><div id="drawerBody"></div><form method="dialog"><button class="close" aria-label="Close">×</button></form></dialog>

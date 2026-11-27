@@ -58,8 +58,8 @@ def _team(c: dict, league: str = "") -> dict:
             "conf": conf, "conf_id": str(cid) if cid is not None else None}
 
 
-def _odds(comp: dict) -> dict | None:
-    o = (comp.get("odds") or [None])[0]
+def odds_entry(o: dict | None) -> dict | None:
+    """One ESPN odds object (scoreboard `odds[i]` or summary `pickcenter[i]`) -> home-relative line."""
     if not o:
         return None
 
@@ -72,9 +72,30 @@ def _odds(comp: dict) -> dict | None:
     spread_home = _f((ps.get("close") or {}).get("line") or (ps.get("open") or {}).get("line"))
     if spread_home is None:
         spread_home = _f(o.get("spread"))
-    out = {"provider": (o.get("provider") or {}).get("name"), "ml_home": american(pick(ml.get("home"))),
-           "ml_away": american(pick(ml.get("away"))), "spread_home": spread_home, "total": _f(o.get("overUnder"))}
+    hto, ato = o.get("homeTeamOdds") or {}, o.get("awayTeamOdds") or {}
+    tot = (o.get("total") or {}).get("over") or {}
+    total = _f(o.get("overUnder"))
+    if total is None:
+        total = _f((tot.get("close") or {}).get("line") or (tot.get("open") or {}).get("line"))
+    out = {"provider": (o.get("provider") or {}).get("name"),
+           "ml_home": american(pick(ml.get("home")) or hto.get("moneyLine")),
+           "ml_away": american(pick(ml.get("away")) or ato.get("moneyLine")),
+           "spread_home": spread_home, "total": total}
     return out if any(v is not None for k, v in out.items() if k != "provider") else None
+
+
+def merge_odds(*cands: dict | None) -> dict | None:
+    """First non-empty value per field across sources (scoreboard, pickcenter entries, last saved line)."""
+    out: dict = {}
+    for c in cands:
+        for k, v in (c or {}).items():
+            if v is not None and out.get(k) is None:
+                out[k] = v
+    return out if any(v is not None for k, v in out.items() if k != "provider") else None
+
+
+def _odds(comp: dict) -> dict | None:
+    return merge_odds(*(odds_entry(o) for o in comp.get("odds") or []))
 
 
 def parse_event(e: dict, league: str) -> dict | None:
@@ -161,6 +182,7 @@ class Espn:
         except Exception as e:
             self.last_error = f"summary {event_id}: {e}"
             return hit[1] if hit else {}
-        keep = {"injuries": d.get("injuries") or [], "predictor": d.get("predictor") or {}}
+        keep = {"injuries": d.get("injuries") or [], "predictor": d.get("predictor") or {},
+                "odds": merge_odds(*(odds_entry(o) for o in d.get("pickcenter") or d.get("odds") or []))}
         self._mem[key] = (time.time(), keep)
         return keep

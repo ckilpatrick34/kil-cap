@@ -74,7 +74,8 @@ def _prime(g) -> bool:
 
 def _gap(g, s):
     """Moneylines only: the one contract whose p_book is a real de-vigged sportsbook price."""
-    if "p_home" not in (g.get("book") or {}):
+    b = g.get("book") or {}
+    if "p_home" not in b or b.get("p_home_src") == "spread":   # spread-implied chances are not a posted price
         return None
     best = None
     for c in g.get("contracts", []):

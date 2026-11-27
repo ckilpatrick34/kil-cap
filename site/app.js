@@ -189,6 +189,7 @@ const SORTS = {
     b.full.exp_profit - a.full.exp_profit,
   win: (a, b) => b.fair - a.fair,
   edge: (a, b) => (b.edge ?? -1) - (a.edge ?? -1),
+  gap: (a, b) => (vsVegas(b) ?? -1) - (vsVegas(a) ?? -1),
   start: (a, b) => ((a.start || "9") < (b.start || "9") ? -1 : 1),
 };
 // "Rank, then time": on-slate bets first, then by start time
@@ -238,6 +239,13 @@ function allRows() {
   const ps = plan(), seen = new Set(ps.map((p) => p.ticker));
   return ps.concat(gameCalls().filter((c) => !seen.has(c.ticker)));
 }
+// The benchmark is the sportsbook: Vegas' no-vig chance for the side shown (null until a line is posted).
+// Kalshi is only where the bet is placed, so its price is the cost, not the opponent.
+function vegasP(p) {
+  const c = (gameFor(p.game_id)?.contracts || []).find((c) => c.ticker === p.ticker);
+  return c?.p_book == null ? null : p.side === "yes" ? c.p_book : 1 - c.p_book;
+}
+const vsVegas = (p) => { const v = vegasP(p); return v == null || p.fair == null ? null : p.fair - v; };
 const LV = { high: "High", medium: "Medium", lean: "Lean", low: "Low", live: "Live" };
 function level(p) {
   if (p.call) return p.level;
@@ -246,9 +254,9 @@ function level(p) {
 }
 const LV_WHY = {
   high: "Clears every check, and the data behind it is solid.",
-  medium: "Clears every check, but thin data or a wide Kalshi spread makes it less certain.",
-  lean: "Our model likes this side a little, but not enough to clear the bar after Kalshi's fee.",
-  low: "Our best side for this game, but there is no edge after Kalshi's fee. Treat it as a coin-flip-level call.",
+  medium: "Clears every check, but thin data or a wide spread on Kalshi makes it less certain.",
+  lean: "We rate this side a little higher than the price, but Kalshi's price and fee leave too little to bet.",
+  low: "Our best side for this game, but Kalshi's price leaves no value after the fee. Treat it as a coin-flip-level call.",
   live: "Game in progress. This is our pre-game winner call; Kalshi's live price already reflects the score.",
 };
 
@@ -326,7 +334,7 @@ function setFeed() {
 
 // ---------- render ----------
 // ---------- the Book: paper bets on the rules that held up on unseen seasons ----------
-const SLV = { wind: "Wind under", prime: "Night-game under", gap: "Vegas gap" };
+const SLV = { wind: "Wind under", prime: "Night-game under", gap: "Better price than Vegas" };
 function bookBet(b) {
   const i = (b.title || "").lastIndexOf(": ");
   const game = i > 0 ? b.title.slice(0, i) : b.title, bet = i > 0 ? b.title.slice(i + 2).replace(/ NO$/, "") : "";
@@ -369,7 +377,7 @@ function renderBook() {
           <p class="bk-why">${esc(b.why)}</p>
         </article>`;
       }).join("")
-    : `<p class="empty">No open bets. The Book only bets when a rule fires: NFL wind 15+ mph, NFL Sunday or Monday night games, or Kalshi priced 3¢+ below the sportsbook line after the fee.</p>`;
+    : `<p class="empty">No open bets. The Book only bets when a rule fires: NFL wind 15+ mph, NFL Sunday or Monday night games, or a side Kalshi sells 3¢+ cheaper than the sportsbook's own fair price, after the fee.</p>`;
   const rec = Object.fromEntries((B.by?.sleeve || []).map((r) => [r.key, r]));
   $("#bkSleeves").innerHTML = Object.entries(B.sleeves || {}).map(([key, s]) => {
     const r = rec[key];
@@ -597,8 +605,8 @@ function plainBet(p) {
 const LV_SHORT = {
   high: "Bet. Clears every check.",
   medium: "Bet, smaller. Clears the checks on thinner data.",
-  lean: "No bet. Small edge, not enough after the fee.",
-  low: "No bet. No edge after the fee.",
+  lean: "No bet. Kalshi's price leaves too little.",
+  low: "No bet. No value at Kalshi's price.",
   live: "Started. This was our pre-game call.",
 };
 let BOOKT = new Map(), GMAP = new Map();
@@ -633,13 +641,16 @@ function pickCard(p, i) {
     ? `<label class="pleg"><input type="checkbox" data-leg="${esc(p.ticker)}" ${legs.has(p.ticker) ? "checked" : ""}> Parlay</label>` : "";
   const n = (k, v, cls = "") => `<span><small>${k}</small><b class="${cls}">${v}</b></span>`;
   const mu = matchup(gameFor(p.game_id));
+  const sport = p.desk !== "crypto", vp = sport ? vegasP(p) : null, vd = vp == null ? null : p.fair - vp;
   return `<article class="pcard ${lv}${p.slate ? " on" : ""}" data-t="${esc(p.ticker)}" tabindex="0">
     <header><span class="tag">${esc(p.desk === "crypto" ? "CRYPTO" : p.league)}</span><span class="muted small">${p.slate ? `#${i + 1} · ` : ""}${mu ? "" : (tm || esc(game)) + " · "}${startsIn(p.start || p.close)}</span>
       ${p.book_sleeve || BOOKT.get(p.ticker) ? bookSlv(p.book_sleeve || BOOKT.get(p.ticker)) : ""}<span class="lvl ${lv}" title="${esc(LV_WHY[lv])} Data grade ${esc(p.confidence)}.">${LV[lv]}</span></header>
-    ${mu}<div class="pbet"><b>${esc(bet)}</b>${p.price != null ? `<span class="muted">Buy <span class="side-${p.side}">${p.side.toUpperCase()}</span> at ${cents(p.price)}</span>` : ""}</div>
-    <div class="pnums">${n("Win chance", pct(p.fair, 0), p.fair >= WIN_MIN ? "pos" : "")}${n("Edge", pct(p.edge, 1, true), p.edge == null ? "muted" : p.edge > 0 ? "pos" : "neg")}${
-      p.slate ? n("Bet", usd(p.stake, 2)) + n("Exp. profit", usd(p.exp_profit, 2), "pos") : n("Bet", "–", "muted")}</div>
-    <footer><span class="muted small">${LV_SHORT[lv]}${p.slate ? ` ${p.count} contracts.` : ""}</span>${leg}</footer>
+    ${mu}<div class="pbet"><b>${esc(bet)}</b>${p.price != null ? `<span class="muted">On Kalshi: <span class="side-${p.side}">${p.side.toUpperCase()}</span> at ${cents(p.price)}${sport && p.edge != null ? ` <small class="${p.edge > 0 ? "pos" : "neg"}" title="Our fair price minus Kalshi's price and fee">${pct(p.edge, 1, true)} after fee</small>` : ""}</span>` : ""}</div>
+    <div class="pnums">${sport
+      ? n("Kil Cap", pct(p.fair, 0), p.fair >= WIN_MIN ? "pos" : "") + n("Vegas", vp == null ? "–" : pct(vp, 0), vp == null ? "muted" : "") + n("vs Vegas", vd == null ? "–" : pct(vd, 1, true), vd == null ? "muted" : vd > 0 ? "pos" : "neg")
+      : n("Win chance", pct(p.fair, 0), p.fair >= WIN_MIN ? "pos" : "") + n("Edge", pct(p.edge, 1, true), p.edge == null ? "muted" : p.edge > 0 ? "pos" : "neg")}${
+      p.slate ? n("Bet", usd(p.stake, 2)) + (sport ? "" : n("Exp. profit", usd(p.exp_profit, 2), "pos")) : n("Bet", "–", "muted")}</div>
+    <footer><span class="muted small">${LV_SHORT[lv]}${p.slate ? ` ${p.count} contracts${sport ? `, expected ${usd(p.exp_profit, 2)}` : ""}.` : ""}</span>${leg}</footer>
   </article>`;
 }
 function renderCards(ps) {
@@ -679,7 +690,7 @@ function renderTop5() {
   $("#top5").innerHTML = top.length
     ? top.map((p, i) => {
         const lv = level(p), { game, bet } = plainBet(p);
-        return `<li data-t="${esc(p.ticker)}" tabindex="0"><span class="n">${i + 1}</span><div><b>${p.slate ? "★ " : ""}${esc(bet)}</b><small>${esc(SHORT[p.league] || p.league)} · ${esc(game)} · ${startsIn(p.start)}</small></div><span class="lvl ${lv}">${LV[lv]}</span><span class="w">${pct(p.fair, 0)}</span></li>`;
+        return `<li data-t="${esc(p.ticker)}" tabindex="0"><span class="n">${i + 1}</span><div><b>${p.slate ? "★ " : ""}${esc(bet)}</b><small>${esc(SHORT[p.league] || p.league)} · ${esc(game)} · ${startsIn(p.start)}${vegasP(p) == null ? "" : ` · Vegas ${pct(vegasP(p), 0)}`}</small></div><span class="lvl ${lv}">${LV[lv]}</span><span class="w">${pct(p.fair, 0)}</span></li>`;
       }).join("")
     : `<li class="none">No games in this window yet.</li>`;
 }
@@ -826,9 +837,11 @@ function openPick(ticker) {
     <div class="muted small mono">${esc(p.ticker)}</div>
     ${p.desk === "crypto" ? `<p><b>${esc(cryptoAction(p))}</b></p>` : ""}
     <div class="facts">
-      <div><span>Buy</span><b class="side-${p.side}">${p.side.toUpperCase()} @ ${cents(p.price)}</b></div>
-      <div><span>Our fair price</span><b>${cents(p.fair)}</b></div>
-      <div><span>Edge after fee</span><b class="${p.edge > 0 ? "pos" : "neg"}">${pct(p.edge, 1, true)}</b></div>
+      <div><span>${p.desk === "crypto" ? "Buy" : "Buy on Kalshi"}</span><b class="side-${p.side}">${p.side.toUpperCase()} @ ${cents(p.price)}</b></div>
+      <div><span>Our fair price</span><b>${cents(p.fair)}</b></div>${vegasP(p) == null ? "" : `
+      <div><span>Vegas chance (no vig)</span><b>${pct(vegasP(p), 1)}</b></div>
+      <div><span>Kil Cap vs Vegas</span><b class="${vsVegas(p) > 0 ? "pos" : "neg"}">${pct(vsVegas(p), 1, true)}</b></div>`}
+      <div><span>${p.desk === "crypto" ? "Edge after fee" : "Value at Kalshi's price"}</span><b class="${p.edge > 0 ? "pos" : "neg"}">${pct(p.edge, 1, true)}</b></div>
       <div><span>Confidence</span><b>${LV[level(p)]} <small class="muted">(data ${esc(p.confidence)})</small></b></div>
       <div><span>Stake</span><b>${p.slate ? usd(p.stake, 2) : "watch only"}</b></div>
       <div><span>Contracts</span><b>${p.count}</b></div>
@@ -1200,10 +1213,10 @@ function verdict(r) {
   const book = r.c.p_book == null ? null : r.b.side === "yes" ? r.c.p_book : 1 - r.c.p_book;
   const why =
     book != null && Math.abs(r.b.fair - book) > 0.08
-      ? "model and Vegas disagree"
+      ? "too far from Vegas to trust"
       : r.b.edge > 0
-        ? "edge too small"
-        : "no edge after fees";
+        ? "value too small"
+        : "Kalshi price too high";
   return `<span class="st ${r.status}">No bet</span><br><small class="muted">${why}</small>`;
 }
 // Our call on the game itself: projected score from the blended model + book line.
@@ -1247,8 +1260,8 @@ function renderBoard() {
       <td>${head}</td>
       <td>Buy <b>${r.b.side.toUpperCase()}</b> on ${esc(betLabel(g, r.c))}${tt}</td>
       <td class="r">${pct(r.b.fair)}</td><td class="r">${pct(sideP(r.c.p_book, r.b.side))}</td>
+      <td class="r ${r.c.p_book == null ? "muted" : r.b.fair > sideP(r.c.p_book, r.b.side) ? "pos" : "neg"}">${r.c.p_book == null ? "–" : pct(r.b.fair - sideP(r.c.p_book, r.b.side), 1, true)}</td>
       <td class="r">${cents(r.c.yes_bid)} / ${cents(r.c.yes_ask)}</td>
-      <td class="r">${cents(r.b.fair)}</td>
       <td class="r ${r.b.edge > 0 ? "pos" : "muted"}">${pct(r.b.edge)}</td>
       <td class="r ${r.per10 > 0 ? "pos" : "muted"}">${r.per10 >= 0 ? "+" : "-"}$${Math.abs(r.per10).toFixed(2)}</td>
       <td>${verdict(r)}</td></tr>`;

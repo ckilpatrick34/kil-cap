@@ -21,7 +21,7 @@ from . import model as M
 from . import calibrate as CAL
 from . import live as LIVE
 from . import segments as SEG
-from .espn import Espn
+from .espn import Espn, merge_odds
 from .kalshi_games import all_markets, attach
 from .leagues import LEAGUES
 from .ratings import fit
@@ -118,11 +118,24 @@ class Slate:
         self.track = Track(self.dir / "track.json")
         self.clv_path = self.dir / "clv.json"
         self.params_path = self.dir / "model_params.json"
+        self.lines_path = self.dir / "vegas_lines.json"     # last known sportsbook line per game, kept after kickoff
+        try:
+            self.lines = json.loads(self.lines_path.read_text())
+        except (OSError, ValueError):
+            self.lines = {}
         self.segments_path = self.dir / "segments.json"
         try:
             self.clv = json.loads(self.clv_path.read_text())
         except (OSError, ValueError):
             self.clv = {}
+
+    def _save_lines(self):
+        cut = (datetime.now(timezone.utc) - timedelta(days=3)).isoformat()
+        self.lines = {k: v for k, v in self.lines.items() if (v.get("start") or "9") >= cut[:10]}
+        try:
+            self.lines_path.write_text(json.dumps(self.lines))
+        except OSError:
+            pass
 
     # ---------- data ----------
     def ratings(self, key: str, today):
@@ -164,6 +177,10 @@ class Slate:
                 if not contracts or not any(contracts.values()):
                     continue
                 summ = self.espn.summary(lg, g["id"]) if g["state"] == "pre" else {}
+                lk = f"{key}:{g['id']}"
+                g["odds"] = merge_odds(g["odds"], summ.get("odds"), self.lines.get(lk))
+                if g["odds"]:
+                    self.lines[lk] = {**g["odds"], "start": g["start"]}
                 wx = (self.weather.at(g["city"], g["region"], g["start_ts"])
                       if lg.outdoor and not g.get("indoor") and g["state"] == "pre" else None)
                 proj = M.project(lg, g, R, summ, wx)
@@ -219,6 +236,7 @@ class Slate:
                     "live": (LIVE.price_game(lg, key, g, mean_b["margin"], mean_b["total"], [c for v in contracts.values() for c in v],
                                              self.label) if g["state"] == "in" else None)})
                 self._track_clv(g, rows)
+        self._save_lines()
         self.track.grade(self.public, self.clv_for)
         signals.sort(key=lambda s: (-s["exp_profit"], -s["roi"]))   # max expected profit first
         games_out.sort(key=lambda g: g["start"] or "")
