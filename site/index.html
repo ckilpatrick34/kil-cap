@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -9,28 +9,40 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="layout.css">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230b1220'/%3E%3Cpath d='M9 8v16M9 16l9-8M12.5 13l7.5 11' stroke='%2350e3c2' stroke-width='3' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
 </head>
 <body>
 <header class="top">
   <a class="brand" href="?" aria-label="Kil Capital home">
     <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="7"/><path d="M9 8v16M9 16l9-8M12.5 13l7.5 11"/></svg>
-    <div><strong>KIL CAPITAL</strong><span>Terminal</span></div>
+    <strong>Kil Capital</strong>
   </a>
-  <nav class="tabs" id="tabs" aria-label="Pages">
-    <a href="?" data-tab="book">Book</a><a href="?view=board" data-tab="board">Board</a><a href="?view=live" data-tab="live">Live <span class="count" id="liveCount"></span></a><a href="?view=results" data-tab="results">Results</a>
-    <a href="?view=crypto" data-tab="crypto">Crypto</a><a href="?view=ledger" data-tab="ledger">Model ledger</a>
-    <a href="?view=learn" data-tab="learn">Learning log <i class="dot" id="learnDot"></i></a><a href="?view=how" data-tab="how">How it works</a>
-  </nav>
-  <div class="status">
-    <span class="badge mode">Recommend-only</span>
-    <span class="feed" id="feed" title="Price feed"><i></i><b id="feedLabel">Loading</b></span>
-    <span class="muted" id="updated">–</span>
-    <button class="icon" id="theme" aria-label="Toggle theme" title="Toggle theme">◐</button>
-  </div>
+  <div class="hbtns"><button class="pill" id="hBank" title="Set your bankroll, budget and max bet">Bankroll</button><button class="pill" id="hBook">The Book</button></div>
 </header>
 
 <main>
+  <section class="t5" aria-label="Top 5 picks">
+    <header><h2 id="t5Title">Today's all-sport top 5</h2>
+      <div class="pseg" id="t5When" role="group" aria-label="Top 5 window"><button data-w="today">Today</button><button data-w="weekend">This weekend</button></div></header>
+    <p class="note">★ High and Medium picks are staked · others graded only</p>
+    <ol id="top5"></ol>
+  </section>
+  <section class="hero">
+    <span class="eyebrow">The board / Recommend-only</span>
+    <h1>Every game, priced.</h1>
+    <p>Vegas line, Kil Cap line and the gap between them. Paper money only.</p>
+    <div class="status">
+      <span class="feed" id="feed" title="Price feed"><i></i><b id="feedLabel">Loading</b></span>
+      <span class="muted" id="updated">–</span>
+      <button class="icon" id="theme" aria-label="Toggle theme" title="Toggle theme">◐</button>
+    </div>
+  </section>
+  <nav class="tabs" id="tabs" aria-label="Pages">
+    <a href="?" data-tab="book">The Book</a><a href="?view=board" data-tab="board">Game board</a><a href="?view=live" data-tab="live">Live <span class="count" id="liveCount"></span></a><a href="?view=results" data-tab="results">Results</a>
+    <a href="?view=crypto" data-tab="crypto">Crypto</a><a href="?view=ledger" data-tab="ledger">Model ledger</a>
+    <a href="?view=learn" data-tab="learn">Learning log <i class="dot" id="learnDot"></i></a><a class="more" href="?view=how" data-tab="how">How it works →</a>
+  </nav>
   <div data-pane="book">
     <section class="bookhero" aria-label="The Book">
       <div class="bh-main"><span class="eyebrow">The Book · paper money</span><b id="bkEquity">–</b><small id="bkPnl">Loading…</small></div>
@@ -46,16 +58,17 @@
     <p class="bk-note">The Book bets only three rules that held up on unseen seasons, $10 max a bet out of a $100 paper bankroll. It is recommend-only: nothing is ever placed. The edge is small, so expect long losing streaks. Judge it on return and closing-line value after 50+ bets, not on win rate.</p>
   </div>
   <div data-pane="board" hidden>
-  <section class="filterbar" aria-label="Filters">
-    <div class="chips" id="sports" role="group" aria-label="Sport"></div>
+  <section class="boardnav" aria-label="Filters">
+    <div class="tiles" id="sports" role="group" aria-label="Sport"></div>
+    <div class="actrow"><button class="pill sq" id="fullCard" title="Every game this week, all filters off">Full card</button>
+      <select id="fSort" aria-label="Sort"><option value="profit">Overall rank</option><option value="start">Start time</option>
+        <option value="ranktime">Rank, then time</option><option value="edge">Raw edge</option><option value="win">Win chance</option></select></div>
     <div class="row2">
       <div class="seg" id="when" role="group" aria-label="When">
         <button data-w="today">Today</button><button data-w="tomorrow">Tomorrow</button><button data-w="weekend">This weekend</button><button data-w="week">This week</button>
       </div>
       <input type="search" id="q" placeholder="Search a team: Georgia, UGA, Bulldogs" aria-label="Search teams">
-      <select id="fSort" aria-label="Sort"><option value="profit">Overall rank</option><option value="start">Start time</option>
-        <option value="ranktime">Rank, then time</option><option value="edge">Raw edge</option><option value="win">Win chance</option></select>
-      <details class="more"><summary>More filters <span id="fCount"></span></summary>
+      <details class="more"><summary>More <span id="fCount"></span> ⌄</summary>
         <div class="toolbar">
           <select id="fConf" aria-label="Conference"><option value="">All conferences</option></select>
           <select id="fKind" aria-label="Bet type"><option value="">All bet types</option><option value="winner">Winner</option>
