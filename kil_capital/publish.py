@@ -22,6 +22,7 @@ from .config import SETTINGS
 from .core import blocklist
 from .crypto.desk import CryptoDesk
 from .autotrack import AutoTrack
+from .book import Book, candidates as book_candidates
 from .budget import FAVOURITE, allocate
 from .sports import calibrate, learn, segments
 from .sports.leagues import SERIES_TO_LEAGUE
@@ -142,7 +143,7 @@ def build(public, data_dir: Path, tz_name: str = SETTINGS.timezone) -> dict:
     games = [g for g in sports["games"] if _allowed({"title": g["name"]})]
     picks = _enrich(picks, games)
     picks = allocate(picks, EQUITY, BUDGET, MAX_TRADE, FAVOURITE)   # same default slate as the dashboard
-    auto = AutoTrack(data_dir / "autotrack.json", EQUITY, BUDGET, MAX_TRADE)
+    auto, mids = AutoTrack(data_dir / "autotrack.json", EQUITY, BUDGET, MAX_TRADE), {}
     try:
         mids = {c["ticker"]: (c["yes_bid"] + c["yes_ask"]) / 2 for g in games for c in g.get("contracts", [])
                 if c.get("yes_bid") and c.get("yes_ask")}
@@ -154,6 +155,20 @@ def build(public, data_dir: Path, tz_name: str = SETTINGS.timezone) -> dict:
         auto.save()
     except Exception as e:  # the paper tracker must never blank the dashboard
         errors.append(f"autotrack: {e}")
+    book = Book(data_dir / "book.json", EQUITY, EQUITY, MAX_TRADE)
+    try:
+        book.mark(mids)
+        book.grade(public)
+        cands = book_candidates(games)
+        book.enter(cands, VERSION)
+        book.save()
+        flagged = {c["ticker"]: c["sleeve"] for c in cands} | {b["ticker"]: b["sleeve"] for b in book.bets}
+        for g in games:
+            for c in g.get("contracts", []):
+                if c["ticker"] in flagged:
+                    c["book_sleeve"] = flagged[c["ticker"]]
+    except Exception as e:  # the book must never blank the dashboard
+        errors.append(f"book: {e}")
     lg = learn.load(data_dir / "learn_log.json")
     status = learn.load(data_dir / "learn_status.json")
     cal = calibrate.load(data_dir / "calibration.json")
@@ -170,6 +185,7 @@ def build(public, data_dir: Path, tz_name: str = SETTINGS.timezone) -> dict:
                                                           "champion_logloss", "challenger_logloss", "ts")},
                   "deciles": calibrate.deciles(_graded(slate))},
         "autotrack": auto.summary(),
+        "book": book.summary(),
         "ratings_n": sports.get("ratings_n", {}),
         "errors": errors + sports.get("errors", []) + cry.get("errors", []),
     }

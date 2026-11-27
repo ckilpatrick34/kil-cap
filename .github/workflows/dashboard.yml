@@ -60,7 +60,10 @@ jobs:
         run: |
           cd data
           [ -e .git ] || git init -q -b state
-          git checkout -q -B state
+          # snapshot of the published page data so it can be read without the Pages host
+          [ -f ../site/data/state.json ] && gzip -9c ../site/data/state.json > last_state.json.gz
+          # orphan commit each run: the branch keeps only the latest state, so it never grows
+          git checkout -q --orphan state-next
           git add -A
           git -c user.name=kil-bot -c user.email=kil-bot@users.noreply.github.com commit -qm "state $(date -u +%FT%TZ)" || exit 0
           # empty extraheader drops checkout's persisted auth header so the token URL is the only credential
