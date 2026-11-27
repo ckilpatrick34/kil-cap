@@ -23,17 +23,17 @@ from .core import blocklist
 from .crypto.desk import CryptoDesk
 from .autotrack import AutoTrack
 from .book import Book, candidates as book_candidates
+from .research.recorder import Recorder
 from .budget import FAVOURITE, allocate
 from .sports import calibrate, learn, segments
 from .sports.leagues import SERIES_TO_LEAGUE
 from .sports.slate import Slate
-from .ufc.desk import UfcDesk
 from .venue.public import PublicClient
 
 log = logging.getLogger("kil.publish")
 EQUITY = float(os.environ.get("KIL_BANKROLL", "100"))      # sizing bankroll for Kelly stakes
-MAX_TRADE = float(os.environ.get("KIL_MAX_TRADE", "3"))       # per bet
-BUDGET = float(os.environ.get("KIL_BUDGET", "25"))            # total open risk for one slate
+MAX_TRADE = float(os.environ.get("KIL_MAX_TRADE", "10"))       # per bet
+BUDGET = float(os.environ.get("KIL_BUDGET", "100"))            # total open risk for one slate
 VERSION = os.environ.get("GITHUB_SHA", "local")[:7]
 MIN_EDGE = float(os.environ.get("KIL_MIN_EDGE", "0.03"))
 MAX_EDGE = float(os.environ.get("KIL_MAX_EDGE", "0.15"))   # bigger gaps are far likelier model error than mispricing
@@ -170,10 +170,11 @@ def build(public, data_dir: Path, tz_name: str = SETTINGS.timezone) -> dict:
                     c["book_sleeve"] = flagged[c["ticker"]]
     except Exception as e:  # the book must never blank the dashboard
         errors.append(f"book: {e}")
-    try:
-        ufc = UfcDesk(public, data_dir).refresh(max_trade=MAX_TRADE)
-    except Exception as e:  # the UFC tab must never blank the dashboard
-        ufc = {"fights": [], "errors": [f"ufc: {e}"]}
+    try:   # record-only research data; never orders, never allowed to blank the dashboard
+        recorders = Recorder(public, data_dir).run()
+    except Exception as e:
+        recorders = {"errors": [str(e)]}
+        errors.append(f"recorders: {e}")
     lg = learn.load(data_dir / "learn_log.json")
     status = learn.load(data_dir / "learn_status.json")
     cal = calibrate.load(data_dir / "calibration.json")
@@ -191,9 +192,9 @@ def build(public, data_dir: Path, tz_name: str = SETTINGS.timezone) -> dict:
                   "deciles": calibrate.deciles(_graded(slate))},
         "autotrack": auto.summary(),
         "book": book.summary(),
-        "ufc": {k: v for k, v in ufc.items() if k != "errors"},
+        "recorders": recorders,
         "ratings_n": sports.get("ratings_n", {}),
-        "errors": errors + sports.get("errors", []) + cry.get("errors", []) + ufc.get("errors", []),
+        "errors": errors + sports.get("errors", []) + cry.get("errors", []),
     }
 
 
