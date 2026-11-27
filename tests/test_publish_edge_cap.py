@@ -10,6 +10,14 @@ class FakeSlate:
         return {"signals": [sig("OK", 0.05), sig("HUGE", 0.37)], "games": []}
 
 
+class FakeUfc:
+    def __init__(self, *a):
+        pass
+
+    def refresh(self, **k):
+        return {"fights": [], "errors": []}
+
+
 class FakeCrypto:
     def __init__(self, *a):
         pass
@@ -21,6 +29,7 @@ class FakeCrypto:
 def test_implausible_edges_are_held_out(monkeypatch, tmp_path):
     monkeypatch.setattr(publish, "Slate", FakeSlate)
     monkeypatch.setattr(publish, "CryptoDesk", FakeCrypto)
+    monkeypatch.setattr(publish, "UfcDesk", FakeUfc)
     monkeypatch.setattr(publish, "_learn_if_due", lambda *a: None)
     st = publish.build(None, tmp_path)
     assert [p["ticker"] for p in st["picks"]] == ["OK"]

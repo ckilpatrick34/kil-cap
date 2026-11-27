@@ -425,6 +425,7 @@ function render() {
   renderAuto();
   renderLearn();
   window.renderLive?.(); // live.js: in-game model (Live tab)
+  window.renderUfc?.(); // ufc.js: UFC fight model (UFC tab)
   const errs = S.errors || [];
   $("#errors").hidden = !errs.length;
   $("#errors").textContent = errs.length
@@ -444,7 +445,7 @@ const ctl = {
 };
 const DEF = { ...F };
 
-const VIEWS = ["book", "board", "live", "results", "crypto", "ledger", "learn", "how"];
+const VIEWS = ["book", "board", "live", "ufc", "results", "crypto", "ledger", "learn", "how"];
 let TAB = "book";
 function loadUrl() {
   const u = new URLSearchParams(location.search);
