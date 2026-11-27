@@ -325,9 +325,80 @@ function setFeed() {
 }
 
 // ---------- render ----------
+// ---------- the Book: paper bets on the rules that held up on unseen seasons ----------
+const SLV = { wind: "Wind under", prime: "Night-game under", gap: "Vegas gap" };
+function bookBet(b) {
+  const i = (b.title || "").lastIndexOf(": ");
+  const game = i > 0 ? b.title.slice(0, i) : b.title, bet = i > 0 ? b.title.slice(i + 2).replace(/ NO$/, "") : "";
+  const no = b.side === "no" && / to win$| wins by /.test(bet);
+  return { game, bet: no ? bet.replace(/ to win$/, " loses").replace(/ wins by (.+)$/, " does not win by $1") : bet };
+}
+function bookSlv(k) {
+  return `<span class="slv ${esc(k)}">${esc(SLV[k] || k)}</span>`;
+}
+function renderBook() {
+  const B = S.book;
+  if (!B) {
+    $("#bkEquity").textContent = "–";
+    $("#bkPnl").textContent = "The Book opens on the next refresh.";
+    return;
+  }
+  const t = B.total || {}, pnl = B.equity - B.bankroll;
+  $("#bkEquity").textContent = usd(B.equity, 2);
+  $("#bkPnl").innerHTML = `<span class="${pnl > 0 ? "pos" : pnl < 0 ? "neg" : ""}">${pnl >= 0 ? "+" : ""}${usd(pnl, 2)}</span> since it started with ${usd(B.bankroll)}`;
+  const k = [
+    ["Record", t.n ? `${t.w}-${t.l}` : "–", t.n ? `${pct(t.win_rate, 0)} won` : "no bets settled yet"],
+    ["Return", t.n ? pct(t.roi, 1, true) : "–", t.n ? `on ${usd(t.staked, 2)} staked` : "profit ÷ money staked"],
+    ["Beat the close", t.avg_clv == null ? "–" : (t.avg_clv > 0 ? "+" : "") + (t.avg_clv * 100).toFixed(1) + "¢", "avg move toward our price"],
+    ["Cash free", usd(B.cash, 2), `${usd(B.open_risk, 2)} riding on open bets`],
+  ];
+  $("#bkKpis").innerHTML = k.map(([a, b, c]) => `<div><span>${a}</span><b>${esc(b)}</b><small>${esc(c)}</small></div>`).join("");
+  $("#bkCurve").innerHTML = curveSvg(B.curve, B.bankroll) || `<p class="muted small">The equity curve draws once the first bet settles.</p>`;
+  const open = B.open || [];
+  $("#bkOpenN").textContent = open.length ? `(${open.length})` : "";
+  $("#bkOpenEv").textContent = open.length ? `Expected profit ${usd(B.open_ev, 2)} on ${usd(B.open_risk, 2)} at risk` : "";
+  $("#bkOpen").innerHTML = open.length
+    ? open.map((b) => {
+        const { game, bet } = bookBet(b), live = Date.parse(b.start) < Date.now();
+        const mv = b.last_mid != null && b.price != null ? b.last_mid - b.price : null;
+        return `<article class="bk">
+          <div class="bk-top">${bookSlv(b.sleeve)}<span class="tag">${esc(b.league)}</span><span class="muted small bk-game">${esc(game)}</span><span class="bk-when ${live ? "live" : ""}">${live ? "Live" : startsIn(b.start)}</span></div>
+          <div class="bk-bet"><b>${esc(bet || game)}</b><span class="bk-amt">${usd(b.cost, 2)}</span></div>
+          <div class="muted small">Buy <span class="side-${b.side}">${b.side.toUpperCase()}</span> at ${cents(b.price)} · ${b.count} contracts · pays ${usd(b.count, 0)} if it wins${mv != null && Math.abs(mv) >= 0.01 ? ` · now ${cents(b.last_mid)} <span class="${mv > 0 ? "pos" : "neg"}">${mv > 0 ? "▲" : "▼"}</span>` : ""}</div>
+          <p class="bk-why">${esc(b.why)}</p>
+        </article>`;
+      }).join("")
+    : `<p class="empty">No open bets. The Book only bets when a rule fires: NFL wind 15+ mph, NFL Sunday or Monday night games, or Kalshi priced 3¢+ below the sportsbook line after the fee.</p>`;
+  const rec = Object.fromEntries((B.by?.sleeve || []).map((r) => [r.key, r]));
+  $("#bkSleeves").innerHTML = Object.entries(B.sleeves || {}).map(([key, s]) => {
+    const r = rec[key];
+    return `<div class="sl">
+      <div class="sl-h">${bookSlv(key)}<span class="muted small">${usd(s.stake_now)} a bet${key === "gap" && !B.gap_proven ? " · $10 after 30 bets beat the close" : ""}</span></div>
+      <div class="sl-n">
+        <span><small>Live record</small><b>${r ? `${r.w}-${r.l}` : "0-0"}</b></span>
+        <span><small>Won</small><b>${r ? pct(r.win_rate, 0) : "–"}</b></span>
+        <span><small>Return</small><b class="${r && r.roi > 0 ? "pos" : r && r.roi < 0 ? "neg" : ""}">${r ? pct(r.roi, 1, true) : "–"}</b></span>
+        <span><small>P&amp;L</small><b>${r ? usd(r.pnl, 2) : "–"}</b></span>
+      </div>
+      <p class="muted small">${esc(s.evidence)}.</p>
+    </div>`;
+  }).join("");
+  const done = B.recent || [];
+  $("#bkRec").textContent = done.length ? `Last ${done.length}` : "";
+  $("#bkDone").innerHTML = done.length
+    ? `<table class="bk-done"><tbody>${done.map((b) => {
+        const { bet, game } = bookBet(b);
+        return `<tr><td>${bookSlv(b.sleeve)}</td><td><b>${esc(bet || game)}</b><div class="muted small">${esc(game)}</div></td>
+          <td class="num"><span class="res ${b.result}">${b.result}</span></td><td class="num ${b.pnl > 0 ? "pos" : "neg"}">${b.pnl > 0 ? "+" : ""}${usd(b.pnl, 2)}</td></tr>`;
+      }).join("")}</tbody></table>`
+    : `<p class="empty">Nothing settled yet. Each bet is graded when Kalshi settles the market.</p>`;
+}
+
 function render() {
   $("#bankroll").textContent = usd(U().bankroll);
   renderSettings();
+  BOOKT = new Map([...(S.games || []).flatMap((g) => (g.contracts || []).filter((c) => c.book_sleeve).map((c) => [c.ticker, c.book_sleeve])), ...(S.book?.open || []).map((b) => [b.ticker, b.sleeve])]);
+  renderBook();
   renderFilters();
   renderKpis();
   renderPlan();
@@ -363,12 +434,12 @@ const ctl = {
 };
 const DEF = { ...F };
 
-const VIEWS = ["board", "live", "results", "crypto", "ledger", "learn", "how"];
-let TAB = "board";
+const VIEWS = ["book", "board", "live", "results", "crypto", "ledger", "learn", "how"];
+let TAB = "book";
 function loadUrl() {
   const u = new URLSearchParams(location.search);
   const v = { picks: "board", auto: "ledger" }[u.get("view")] || u.get("view");
-  TAB = VIEWS.includes(v) ? v : "board";
+  TAB = VIEWS.includes(v) ? v : "book";
   Object.assign(F, DEF);
   for (const k of Object.keys(F))
     if (u.has(k))
@@ -376,7 +447,7 @@ function loadUrl() {
 }
 function saveUrl(push = false) {
   const u = new URLSearchParams();
-  if (TAB !== "board") u.set("view", TAB);
+  if (TAB !== "book") u.set("view", TAB);
   for (const [k, v] of Object.entries(F))
     if (v !== DEF[k]) u.set(k, typeof v === "boolean" ? (v ? "1" : "0") : v);
   const url = u.toString() ? "?" + u : location.pathname;
@@ -518,6 +589,7 @@ const LV_SHORT = {
   low: "No bet. No edge after the fee.",
   live: "Started. This was our pre-game call.",
 };
+let BOOKT = new Map();
 function pickCard(p, i) {
   const lv = level(p), { game, bet } = plainBet(p);
   const tm = teamsOf(p)
@@ -528,7 +600,7 @@ function pickCard(p, i) {
   const n = (k, v, cls = "") => `<span><small>${k}</small><b class="${cls}">${v}</b></span>`;
   return `<article class="pcard ${lv}${p.slate ? " on" : ""}" data-t="${esc(p.ticker)}" tabindex="0">
     <header><span class="tag">${esc(p.desk === "crypto" ? "CRYPTO" : p.league)}</span><span class="muted small">${p.slate ? `#${i + 1} · ` : ""}${tm || esc(game)} · ${startsIn(p.start || p.close)}</span>
-      <span class="lvl ${lv}" title="${esc(LV_WHY[lv])} Data grade ${esc(p.confidence)}.">${LV[lv]}</span></header>
+      ${p.book_sleeve || BOOKT.get(p.ticker) ? bookSlv(p.book_sleeve || BOOKT.get(p.ticker)) : ""}<span class="lvl ${lv}" title="${esc(LV_WHY[lv])} Data grade ${esc(p.confidence)}.">${LV[lv]}</span></header>
     <div class="pbet"><b>${esc(bet)}</b>${p.price != null ? `<span class="muted"> · buy <span class="side-${p.side}">${p.side.toUpperCase()}</span> at ${cents(p.price)}</span>` : ""}</div>
     <div class="pnums">${n("Win chance", pct(p.fair, 0), p.fair >= WIN_MIN ? "pos" : "")}${n("Edge", pct(p.edge, 1, true), p.edge == null ? "muted" : p.edge > 0 ? "pos" : "neg")}${
       p.slate ? n("Bet", usd(p.stake, 2)) + n("Exp. profit", usd(p.exp_profit, 2), "pos") : n("Bet", "–", "muted")}</div>
@@ -1438,7 +1510,7 @@ function renderLearn() {
 
 // ---------- tabs ----------
 function showTab(t, push = false) {
-  TAB = VIEWS.includes(t) ? t : "board";
+  TAB = VIEWS.includes(t) ? t : "book";
   for (const a of document.querySelectorAll("#tabs a"))
     a.toggleAttribute("aria-current", a.dataset.tab === TAB);
   for (const d of document.querySelectorAll("[data-pane]"))

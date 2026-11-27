@@ -237,3 +237,50 @@ main>*,[data-pane]>*{min-width:0}
 .pcard footer{text-align:left;padding:0;font-size:inherit;color:inherit}
 
 #lab td{white-space:normal}#lab td.r{white-space:nowrap}#lab td:first-child{min-width:170px}#lab .lvl{white-space:nowrap}.labnote{margin:10px 14px 14px;line-height:1.5}
+
+/* ---------- the Book ---------- */
+.bookhero{display:grid;grid-template-columns:minmax(200px,1fr) 2fr;grid-template-areas:"main kpis" "curve curve";gap:14px 24px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 20px;box-shadow:var(--shadow)}
+.bh-main{grid-area:main;min-width:0}
+.bh-main .eyebrow{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.bh-main b{display:block;font-family:var(--mono);font-size:40px;font-weight:600;line-height:1.1;margin:4px 0;letter-spacing:-.02em}
+.bh-main small{color:var(--muted);font-size:13px}
+.bh-kpis{grid-area:kpis;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;align-self:center}
+.bh-kpis div{background:var(--line2);border-radius:10px;padding:10px 12px;min-width:0}
+.bh-kpis span{display:block;font-size:11px;color:var(--muted)}
+.bh-kpis b{display:block;font-family:var(--mono);font-size:18px;font-weight:600;margin:2px 0}
+.bh-kpis small{display:block;font-size:11px;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bh-curve{grid-area:curve;min-width:0}
+.bh-curve .curve{height:96px}
+
+.slv{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;white-space:nowrap;background:var(--accent-bg);color:var(--accent);margin-right:6px}
+.slv.wind{background:color-mix(in srgb,var(--b) 16%,transparent);color:var(--b)}
+.slv.prime{background:color-mix(in srgb,var(--warn) 16%,transparent);color:var(--warn)}
+.bk-list{padding:0 16px 16px;display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(320px,1fr))}
+.bk-list .empty,.bk-list table{grid-column:1/-1}
+.bk{border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:grid;gap:6px;min-width:0}
+.bk-top{display:flex;align-items:center;min-width:0;gap:0}
+.bk-game{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bk-when{font-family:var(--mono);font-size:12px;color:var(--muted);margin-left:8px;white-space:nowrap}
+.bk-when.live{color:var(--neg);font-weight:600}
+.bk-bet{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.bk-bet b{font-size:17px}
+.bk-amt{font-family:var(--mono);font-size:17px;font-weight:600}
+.bk-why{margin:2px 0 0;font-size:12px;color:var(--faint);line-height:1.45}
+.bk-sleeves{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px;padding:0 16px 16px}
+.sl{background:var(--line2);border-radius:10px;padding:12px 14px;display:grid;gap:8px;align-content:start}
+.sl-h{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.sl-n{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.sl-n small{display:block;font-size:10px;color:var(--muted)}
+.sl-n b{font-family:var(--mono);font-size:15px;font-weight:600}
+.sl p{margin:0;line-height:1.45}
+.bk-done{width:100%;border-collapse:collapse;font-size:13px}
+.bk-done td{padding:8px 6px;border-top:1px solid var(--line2);vertical-align:middle}
+.bk-done tr:first-child td{border-top:0}
+.bk-done td:first-child{width:1%;padding-left:0}
+.bk-done .num{text-align:right;font-family:var(--mono);white-space:nowrap;width:1%}
+.res{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:6px;font-size:12px;font-weight:700;color:var(--panel);background:var(--neg)}
+.res.W{background:var(--pos)}
+.bk-note{font-size:12px;color:var(--muted);line-height:1.55;max-width:760px;margin:16px auto 0;text-align:center}
+.pcard .slv{margin:0 4px 0 0}
+@media (max-width:900px){.bookhero{grid-template-columns:1fr;grid-template-areas:"main" "kpis" "curve"}.bh-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:640px){.bookhero{padding:16px;border-radius:12px}.bh-main b{font-size:34px}.bk-list{grid-template-columns:1fr;padding:0 12px 12px}.bk-sleeves{padding:0 12px 12px}.sl-n{grid-template-columns:repeat(2,minmax(0,1fr))}.bk-top{flex-wrap:wrap;row-gap:4px}.bk-game{flex-basis:100%;order:3;white-space:normal}.bk-when{margin-left:auto}}

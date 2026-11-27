@@ -18,8 +18,8 @@
     <div><strong>KIL CAPITAL</strong><span>Terminal</span></div>
   </a>
   <nav class="tabs" id="tabs" aria-label="Pages">
-    <a href="?view=board" data-tab="board">Board</a><a href="?view=live" data-tab="live">Live <span class="count" id="liveCount"></span></a><a href="?view=results" data-tab="results">Results</a>
-    <a href="?view=crypto" data-tab="crypto">Crypto</a><a href="?view=ledger" data-tab="ledger">Paper ledger</a>
+    <a href="?" data-tab="book">Book</a><a href="?view=board" data-tab="board">Board</a><a href="?view=live" data-tab="live">Live <span class="count" id="liveCount"></span></a><a href="?view=results" data-tab="results">Results</a>
+    <a href="?view=crypto" data-tab="crypto">Crypto</a><a href="?view=ledger" data-tab="ledger">Model ledger</a>
     <a href="?view=learn" data-tab="learn">Learning log <i class="dot" id="learnDot"></i></a><a href="?view=how" data-tab="how">How it works</a>
   </nav>
   <div class="status">
@@ -31,7 +31,21 @@
 </header>
 
 <main>
-  <div data-pane="board">
+  <div data-pane="book">
+    <section class="bookhero" aria-label="The Book">
+      <div class="bh-main"><span class="eyebrow">The Book · paper money</span><b id="bkEquity">–</b><small id="bkPnl">Loading…</small></div>
+      <div class="bh-kpis" id="bkKpis"></div>
+      <div class="bh-curve" id="bkCurve"></div>
+    </section>
+    <section class="panel"><div class="phead"><h2>Open bets <span class="count" id="bkOpenN"></span></h2><span class="muted small" id="bkOpenEv"></span></div>
+      <div class="bk-list" id="bkOpen"></div></section>
+    <section class="panel"><div class="phead"><h2>Strategies in the book</h2><span class="muted small">Tested on seasons the rules never saw</span></div>
+      <div class="bk-sleeves" id="bkSleeves"></div></section>
+    <section class="panel"><div class="phead"><h2>Settled</h2><span class="muted small" id="bkRec"></span></div>
+      <div class="bk-list" id="bkDone"></div></section>
+    <p class="bk-note">The Book bets only three rules that held up on unseen seasons, $10 max a bet out of a $100 paper bankroll. It is recommend-only: nothing is ever placed. The edge is small, so expect long losing streaks. Judge it on return and closing-line value after 50+ bets, not on win rate.</p>
+  </div>
+  <div data-pane="board" hidden>
   <section class="filterbar" aria-label="Filters">
     <div class="chips" id="sports" role="group" aria-label="Sport"></div>
     <div class="row2">
