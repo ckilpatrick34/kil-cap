@@ -27,6 +27,7 @@ from .budget import FAVOURITE, allocate
 from .sports import calibrate, learn, segments
 from .sports.leagues import SERIES_TO_LEAGUE
 from .sports.slate import Slate
+from .ufc.desk import UfcDesk
 from .venue.public import PublicClient
 
 log = logging.getLogger("kil.publish")
@@ -169,6 +170,10 @@ def build(public, data_dir: Path, tz_name: str = SETTINGS.timezone) -> dict:
                     c["book_sleeve"] = flagged[c["ticker"]]
     except Exception as e:  # the book must never blank the dashboard
         errors.append(f"book: {e}")
+    try:
+        ufc = UfcDesk(public, data_dir).refresh(max_trade=MAX_TRADE)
+    except Exception as e:  # the UFC tab must never blank the dashboard
+        ufc = {"fights": [], "errors": [f"ufc: {e}"]}
     lg = learn.load(data_dir / "learn_log.json")
     status = learn.load(data_dir / "learn_status.json")
     cal = calibrate.load(data_dir / "calibration.json")
@@ -186,8 +191,9 @@ def build(public, data_dir: Path, tz_name: str = SETTINGS.timezone) -> dict:
                   "deciles": calibrate.deciles(_graded(slate))},
         "autotrack": auto.summary(),
         "book": book.summary(),
+        "ufc": {k: v for k, v in ufc.items() if k != "errors"},
         "ratings_n": sports.get("ratings_n", {}),
-        "errors": errors + sports.get("errors", []) + cry.get("errors", []),
+        "errors": errors + sports.get("errors", []) + cry.get("errors", []) + ufc.get("errors", []),
     }
 
 
