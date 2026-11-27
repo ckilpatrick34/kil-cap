@@ -131,6 +131,9 @@ def book_view(lg: League, odds: dict | None) -> dict:
     if odds.get("total") is not None:
         out["total"] = odds["total"]
     p = devig(odds.get("ml_home"), odds.get("ml_away"))
+    if p is None and "margin" in out:      # no moneyline posted: the spread still implies the book's win chance
+        p = p_home_win(lg, out["margin"])
+        out["p_home_src"] = "spread"
     if p is not None:
         out["p_home"] = p
     return out
