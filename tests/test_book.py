@@ -50,3 +50,19 @@ def test_book_one_bet_per_game_caps_and_grades(tmp_path):
 def test_book_never_risks_more_than_cash(tmp_path):
     b = Book(tmp_path / "b.json", 15, 15, 10)
     assert b.enter(candidates([game(str(i), wind=20) for i in range(5)]), "v") == 1
+
+
+def test_gap_ignores_spreads_and_totals_whose_book_price_is_a_guess():
+    tot = [{"ticker": "O", "kind": "total", "line": 44.5, "yes_bid": 0.40, "yes_ask": 0.45, "p_book": 0.60}]
+    spr = [{"ticker": "S", "kind": "spread", "team": "home", "line": 3.5, "yes_bid": 0.40, "yes_ask": 0.45, "p_book": 0.60}]
+    assert candidates([game(contracts=tot)]) == [] and candidates([game(contracts=spr)]) == []
+    ml = [{"ticker": "W", "kind": "winner", "team": "home", "yes_bid": 0.53, "yes_ask": 0.55, "p_book": 0.60}]
+    g = game(contracts=ml); del g["book"]["p_home"]
+    assert candidates([g]) == []                                            # no moneyline odds: no gap
+
+
+def test_gap_sleeve_open_risk_is_capped(tmp_path):
+    b = Book(tmp_path / "b.json", 100, 100, 10)
+    ml = lambda i: [{"ticker": f"W{i}", "kind": "winner", "team": "home", "yes_bid": 0.53, "yes_ask": 0.55, "p_book": 0.60}]
+    n = b.enter(candidates([game(str(i), contracts=ml(i)) for i in range(10)]), "v")
+    assert n == 5 and b._open_cost("gap") <= 25                              # ~$4.98 each, $25 cap

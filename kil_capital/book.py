@@ -6,9 +6,12 @@ shown plus Kalshi's taker fee, and graded when Kalshi settles the market (same m
 Sleeves (evidence in LINE_SYSTEMS.md, unseen-season tests only):
   wind  NFL total, wind 15+ mph at kickoff, bet the under.  55.4% / +5.8% on 267 test bets.  $10.
   prime NFL Sunday/Monday night, bet the under.          53.2% / +3.3% on 491 test bets.   $5.
-  gap   Any league: Kalshi cheaper than the de-vigged sportsbook price by 3c+ after fee.  No model beat
-        the closing line, so the book price is our best truth estimate.  Unproven: whether the odds
-        snapshot is fresh.  $5 until 30+ graded bets show positive closing-line value, then $10.
+  gap   Any league, moneyline only: Kalshi cheaper than the de-vigged sportsbook moneyline by 3c+ after fee.
+        No model beat the closing line, so the book price is our best truth estimate.  Spreads and totals
+        are excluded: their "book" probability is a normal-curve guess around the line, not a price, and
+        the first live run showed it badly off for NHL 5.5 totals.  Unproven: whether the odds snapshot is
+        fresh.  $5 until 30+ graded bets show positive closing-line value, then $10; never more than
+        $25 open at once so one stale feed cannot drain the bankroll.
 One bet per game, never more open risk than cash, never more than max_bet on one bet."""
 from __future__ import annotations
 
@@ -24,8 +27,8 @@ SLEEVES = {
     "prime": {"label": "NFL night-game under", "stake": 5.0, "cap": 0.52,
               "evidence": "NFL Sunday/Monday night unders: 53.2% won, +3.3% return, 491 bets on unseen seasons"},
     "gap": {"label": "Vegas gap", "stake": 5.0, "stake_proven": 10.0, "min_gap": 0.03, "max_gap": 0.12,
-            "lo": 0.25, "hi": 0.85, "near": 1.5,
-            "evidence": "Kalshi priced below the de-vigged sportsbook line by 3c+ after fee. Unproven: "
+            "lo": 0.25, "hi": 0.85, "max_open": 25.0,
+            "evidence": "Kalshi moneyline priced below the de-vigged sportsbook moneyline by 3c+ after fee. Unproven: "
                         "closing-line value on the first 30 bets decides whether it graduates to $10"},
 }
 ORDER = ("wind", "prime", "gap")   # stronger evidence first when one game qualifies twice
@@ -70,14 +73,13 @@ def _prime(g) -> bool:
 
 
 def _gap(g, s):
+    """Moneylines only: the one contract whose p_book is a real de-vigged sportsbook price."""
+    if "p_home" not in (g.get("book") or {}):
+        return None
     best = None
     for c in g.get("contracts", []):
         pb = c.get("p_book")
-        if pb is None or c["kind"] not in ("winner", "spread", "total"):
-            continue
-        if c["kind"] == "total" and abs(c["line"] - (g["book"].get("total") or 1e9)) > s["near"]:
-            continue
-        if c["kind"] == "spread" and (_team_margin(g, c) is None or abs(c["line"] - _team_margin(g, c)) > s["near"]):
+        if pb is None or c["kind"] != "winner":
             continue
         for side, fair, price in (("yes", pb, c.get("yes_ask")), ("no", 1 - pb, _no(c))):
             if not price or not s["lo"] <= price <= s["hi"]:
@@ -122,6 +124,9 @@ class Book(AutoTrack):
         clv = [b["clv"] for b in self.bets if b.get("sleeve") == "gap" and b.get("clv") is not None]
         return len(clv) >= 30 and sum(clv) / len(clv) > 0
 
+    def _open_cost(self, sleeve: str) -> float:
+        return sum(b["cost"] for b in self.bets if b.get("sleeve") == sleeve and b["result"] is None)
+
     def stake(self, sleeve: str) -> float:
         s = SLEEVES[sleeve]
         st = s["stake_proven"] if sleeve == "gap" and self.gap_proven() else s["stake"]
@@ -144,6 +149,9 @@ class Book(AutoTrack):
             f = fee(count, p)
             cost = round(count * p + f, 2)
             if cost > self.cash() or cost > self.max_bet:
+                continue
+            cap = SLEEVES[c["sleeve"]].get("max_open")
+            if cap is not None and self._open_cost(c["sleeve"]) + cost > cap:
                 continue
             edge = None if c["fair"] is None else round(c["fair"] - p, 4)
             self.d["bets"][c["ticker"]] = {

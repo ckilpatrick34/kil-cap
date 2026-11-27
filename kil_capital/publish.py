@@ -155,7 +155,7 @@ def build(public, data_dir: Path, tz_name: str = SETTINGS.timezone) -> dict:
         auto.save()
     except Exception as e:  # the paper tracker must never blank the dashboard
         errors.append(f"autotrack: {e}")
-    book = Book(data_dir / "book.json", EQUITY, EQUITY, MAX_TRADE)
+    book = Book(data_dir / "book_v2.json", EQUITY, EQUITY, MAX_TRADE)
     try:
         book.mark(mids)
         book.grade(public)
