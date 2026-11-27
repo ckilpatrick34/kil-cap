@@ -4,7 +4,7 @@ Recommend-only. No Kalshi account, keys or orders: entries are written to data/b
 shown plus Kalshi's taker fee, and graded when Kalshi settles the market (same machinery as AutoTrack).
 
 Sleeves (evidence in LINE_SYSTEMS.md, unseen-season tests only):
-  wind  NFL total, wind 15+ mph at kickoff, bet the under.  55.4% / +5.8% on 267 test bets.  $10.
+  wind  NFL total, wind 15+ mph at kickoff, bet the under.  55.4% / +5.8% on 267 test bets.  $5 (NFL cap).
   prime NFL Sunday/Monday night, bet the under.          53.2% / +3.3% on 491 test bets.   $5.
   gap   Any league, moneyline only: Kalshi cheaper than the de-vigged sportsbook moneyline by 3c+ after fee.
         No model beat the closing line, so the book price is our best truth estimate.  Spreads and totals
@@ -12,17 +12,18 @@ Sleeves (evidence in LINE_SYSTEMS.md, unseen-season tests only):
         the first live run showed it badly off for NHL 5.5 totals.  Unproven: whether the odds snapshot is
         fresh.  $5 until 30+ graded bets show positive closing-line value, then $10; never more than
         $25 open at once so one stale feed cannot drain the bankroll.
-One bet per game, never more open risk than cash, never more than max_bet on one bet."""
+One bet per game, never more open risk than cash, never more than max_bet on one bet (LEAGUE_MAX for NFL)."""
 from __future__ import annotations
 
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from .autotrack import AutoTrack, fee
+from .budget import LEAGUE_MAX
 
 ET = ZoneInfo("America/New_York")
 SLEEVES = {
-    "wind": {"label": "NFL wind under", "stake": 10.0, "cap": 0.54,
+    "wind": {"label": "NFL wind under", "stake": 5.0, "cap": 0.54,
              "evidence": "NFL unders with 15+ mph wind: 55.4% won, +5.8% return, 267 bets on unseen seasons"},
     "prime": {"label": "NFL night-game under", "stake": 5.0, "cap": 0.52,
               "evidence": "NFL Sunday/Monday night unders: 53.2% won, +3.3% return, 491 bets on unseen seasons"},
@@ -141,7 +142,8 @@ class Book(AutoTrack):
             if c["ticker"] in self.d["bets"] or c["game_id"] in games:
                 continue
             p = c["price"]
-            stake = self.stake(c["sleeve"])
+            lim = min(self.max_bet, LEAGUE_MAX.get(c.get("league"), self.max_bet))
+            stake = min(self.stake(c["sleeve"]), lim)
             count = int(stake // p)
             while count > 0 and count * p + fee(count, p) > stake:
                 count -= 1
@@ -149,7 +151,7 @@ class Book(AutoTrack):
                 continue
             f = fee(count, p)
             cost = round(count * p + f, 2)
-            if cost > self.cash() or cost > self.max_bet:
+            if cost > self.cash() or cost > lim:
                 continue
             cap = SLEEVES[c["sleeve"]].get("max_open")
             if cap is not None and self._open_cost(c["sleeve"]) + cost > cap:

@@ -39,7 +39,7 @@ def test_book_one_bet_per_game_caps_and_grades(tmp_path):
     cands = candidates([game(wind=20), game("2", wind=20)])
     assert b.enter(cands, "v") == 2 and b.enter(cands, "v") == 0
     bet = b.d["bets"]["T1"]
-    assert bet["cost"] <= 10 and bet["count"] == 19                       # $10 sleeve at 50c + fee
+    assert bet["cost"] <= 5 and bet["count"] == 9                         # NFL capped at $5: 50c + fee
     class Pub:
         def market(self, t): return {"result": "no"}
     b.grade(Pub(), now=4102444800 + 10**6)
@@ -49,7 +49,7 @@ def test_book_one_bet_per_game_caps_and_grades(tmp_path):
 
 def test_book_never_risks_more_than_cash(tmp_path):
     b = Book(tmp_path / "b.json", 15, 15, 10)
-    assert b.enter(candidates([game(str(i), wind=20) for i in range(5)]), "v") == 1
+    assert b.enter(candidates([game(str(i), wind=20) for i in range(5)]), "v") == 3     # $4.66 each, $15 cash
 
 
 def test_gap_ignores_spreads_and_totals_whose_book_price_is_a_guess():
@@ -66,3 +66,15 @@ def test_gap_sleeve_open_risk_is_capped(tmp_path):
     ml = lambda i: [{"ticker": f"W{i}", "kind": "winner", "team": "home", "yes_bid": 0.53, "yes_ask": 0.55, "p_book": 0.60}]
     n = b.enter(candidates([game(str(i), contracts=ml(i)) for i in range(10)]), "v")
     assert n == 5 and b._open_cost("gap") <= 25                              # ~$4.98 each, $25 cap
+
+
+def test_nfl_capped_at_five_even_when_gap_graduates(tmp_path):
+    ml = [{"ticker": "W", "kind": "winner", "team": "home", "yes_bid": 0.53, "yes_ask": 0.55, "p_book": 0.60}]
+    costs = {}
+    for lg in ("NFL", "NBA"):
+        b = Book(tmp_path / f"{lg}.json", 100, 100, 10)
+        b.gap_proven = lambda: True                                         # $10 stake once proven
+        g = game(contracts=ml); g["league"] = lg
+        assert b.enter(candidates([g]), "v") == 1
+        costs[lg] = b.d["bets"]["W"]["cost"]
+    assert costs["NFL"] <= 5 < costs["NBA"] <= 10

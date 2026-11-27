@@ -9,6 +9,11 @@ from __future__ import annotations
 from .sports.segments import size
 
 FAVOURITE = 0.55
+LEAGUE_MAX = {"NFL": 5.0}   # per-bet cap by league; NFL at $5 cuts a $50 season drawdown from 20-36% to 1-7%
+
+
+def bet_cap(p: dict, max_bet: float) -> float:
+    return min(max_bet, LEAGUE_MAX.get(p.get("league"), max_bet))
 
 
 def rank_key(p: dict):
@@ -19,7 +24,7 @@ def allocate(picks: list[dict], bankroll: float, budget: float, max_bet: float, 
     """min_fair=FAVOURITE keeps underdogs watch-only (the dashboard's default 'win-majority' slate)."""
     left, out = max(0.0, budget), []
     for p in sorted(picks, key=rank_key):
-        sz = size(p["fair"], p["price"], bankroll, min(max_bet, left), p.get("segment_mult", 1.0))
+        sz = size(p["fair"], p["price"], bankroll, min(bet_cap(p, max_bet), left), p.get("segment_mult", 1.0))
         take = sz["count"] >= 1 and p["fair"] >= min_fair
         if take:
             left -= sz["stake"]
@@ -32,4 +37,6 @@ if __name__ == "__main__":   # self-check: total never exceeds the budget, each 
     ps = [{"ticker": str(i), "fair": 0.6 + i * 0.01, "price": 0.5, "edge": 0.08, "exp_profit": 1} for i in range(20)]
     a = allocate(ps, 100, 25, 3)
     assert sum(p["stake"] for p in a) <= 25 and max(p["stake"] for p in a) <= 3 and any(not p["slate"] for p in a)
+    n = allocate([{**ps[0], "league": "NFL"}], 100, 25, 10)
+    assert n[0]["stake"] <= 5
     print("ok", sum(p["slate"] for p in a), round(sum(p["stake"] for p in a), 2))

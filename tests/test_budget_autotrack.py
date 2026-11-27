@@ -16,6 +16,12 @@ def test_allocate_respects_budget_and_max_bet():
     assert any(not p["slate"] for p in out)            # the rest are watch-only
 
 
+def test_nfl_bets_capped_at_five_dollars():
+    out = allocate([pick("N", fair=0.8, league="NFL"), pick("B", fair=0.8, league="NBA")], 100, 100, 10)
+    by = {p["ticker"]: p for p in out}
+    assert 0 < by["N"]["stake"] <= 5 < by["B"]["stake"] <= 10
+
+
 def test_fee_rounds_up_to_cent():
     assert fee(1, 0.5) == 0.02 and fee(10, 0.5) == 0.18
 
