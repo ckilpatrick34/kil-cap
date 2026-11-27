@@ -1,3 +1,5 @@
+import time
+
 from kil_capital.sports.track import Track, edge_bucket
 
 
@@ -41,3 +43,42 @@ def test_shrink_pulls_overconfident_bucket_down(tmp_path):
     f = tr.shrink("nba", "spread", 0.06, 0.60)
     assert 0.45 < f < 0.60                                       # pulled toward 0.25, partially
     assert tr.shrink("nba", "total", 0.06, 0.60) == 0.60        # other buckets untouched
+
+
+
+class FakePublic:
+    def __init__(self, results):
+        self.results, self.calls = results, []
+
+    def market(self, t):
+        self.calls.append(t)
+        return {"result": self.results.get(t, "")}
+
+
+def _sig(t, start):
+    return {"ticker": t, "side": "yes", "price": 0.4, "fair": 0.5, "edge": 0.06, "start": start}
+
+
+def test_grades_after_game_even_when_close_time_is_days_away(tmp_path):
+    now = time.time()
+    tr = Track(tmp_path / "t.json")
+    tr.record(_sig("A", "2026-01-01T00:00:00Z"), "nba", "ml", "2099-01-01T00:00:00Z")   # game long over
+    tr.record(_sig("B", "2099-01-01T00:00:00Z"), "nba", "ml", "2099-01-03T00:00:00Z")   # not played yet
+    pub = FakePublic({"A": "yes", "B": "no"})
+    tr.grade(pub, now=now)
+    assert pub.calls == ["A"]
+    assert tr.rows["A:yes"]["result"] == "W"
+    assert tr.rows["B:yes"]["result"] is None
+    assert Track(tmp_path / "t.json").rows["A:yes"]["result"] == "W"   # persisted
+
+
+def test_unsettled_rows_rotate_instead_of_blocking(tmp_path):
+    now = time.time()
+    tr = Track(tmp_path / "t.json")
+    for i in range(5):
+        tr.record(_sig(f"T{i}", "2026-01-01T00:00:00Z"), "nba", "ml", None)
+    pub = FakePublic({"T4": "no"})
+    tr.grade(pub, max_calls=2, now=now)
+    tr.grade(pub, max_calls=2, now=now + 2000)
+    tr.grade(pub, max_calls=2, now=now + 4000)
+    assert "T4" in pub.calls and tr.rows["T4:yes"]["result"] == "L"

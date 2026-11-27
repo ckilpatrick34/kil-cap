@@ -41,19 +41,28 @@ class Track:
             self.rows[k] = {"ticker": sig["ticker"], "side": sig["side"], "price": sig["price"],
                             "fair": sig["fair"], "edge": sig["edge"], "league": league, "kind": kind,
                             "bucket": edge_bucket(sig["edge"]), "title": sig.get("title", ""),
-                            "close_ts": close_ts, "logged": time.time(), "result": None,
+                            "close_ts": close_ts, "start": sig.get("start"), "logged": time.time(), "result": None,
                             "model_fair": sig.get("model_fair"), "mid": sig.get("mid")}
             self._save()
 
-    def grade(self, public, clv_for=None, max_calls: int = 25):
-        """Settle pending picks whose market has closed.  Bounded per call so it never stalls a refresh."""
-        now, calls, changed = time.time(), 0, False
-        for r in list(self.rows.values()):
-            if isinstance(r["close_ts"], str):  # rows logged before close_ts was parsed held the raw ISO string
-                r["close_ts"] = _ts(r["close_ts"])
-            if r["result"] is not None or (r["close_ts"] and r["close_ts"] > now) or calls >= max_calls:
+    def grade(self, public, clv_for=None, max_calls: int = 60, now: float | None = None):
+        """Settle pending picks whose game should be over.  Kalshi's close_time on game markets is a backstop
+        days after the game (it settles hours after the final), so gate on game start, not close_time.
+        Least-recently-checked first, at most once per 30 min each, bounded so it never stalls a refresh."""
+        now, calls, changed = now or time.time(), 0, False
+        due = []
+        for r in self.rows.values():
+            if r["result"] is not None or now - r.get("checked", 0) < 1800:
                 continue
+            close = _ts(r["close_ts"]) if isinstance(r.get("close_ts"), str) else r.get("close_ts")
+            start = _ts(r["start"]) if r.get("start") else None
+            over = (start or r["logged"]) + 3 * 3600 <= now   # no start: assume the game was near logging
+            if not over and not (close is not None and close <= now):
+                continue
+            due.append(r)
+        for r in sorted(due, key=lambda r: r.get("checked", 0))[:max_calls]:
             calls += 1
+            r["checked"], changed = now, True
             try:
                 m = public.market(r["ticker"])
             except Exception:
