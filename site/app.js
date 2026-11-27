@@ -138,13 +138,13 @@ const ymd = (t) => new Date(t).toLocaleDateString("en-CA", { timeZone: TZ });
 const teamsOf = (p) => p.teams || [];
 const ranked = (p) => teamsOf(p).filter((t) => t.rank).length;
 
-function inWindow(p) {
+function inWindow(p, w = F.w) {
   if (!p.start) return true; // crypto: always open
   const t = Date.parse(p.start),
     now = Date.now();
-  if (F.w === "today") return t < now || ymd(t) === ymd(now); // started counts as today
-  if (F.w === "tomorrow") return ymd(t) === ymd(now + 864e5);
-  if (F.w === "weekend") {
+  if (w === "today") return t < now || ymd(t) === ymd(now); // started counts as today
+  if (w === "tomorrow") return ymd(t) === ymd(now + 864e5);
+  if (w === "weekend") {
     // this Fri-Sun in Central time; on Fri-Sun that includes games already started today
     const dow = new Date(now).toLocaleDateString("en-US", { timeZone: TZ, weekday: "short" });
     const toSun = { Mon: 6, Tue: 5, Wed: 4, Thu: 3, Fri: 2, Sat: 1, Sun: 0 }[dow];
@@ -467,6 +467,8 @@ function options(sel, vals, all) {
       .join("");
 }
 
+const SHORT = { "College football": "CFB", "College basketball": "CBB" };
+const WLAB = { today: "Today", tomorrow: "Tomorrow", weekend: "This weekend", week: "This week" };
 function renderFilters() {
   const ps = S.picks || [];
   // sport chips: every league with a pick or a game, in a fixed order
@@ -480,11 +482,18 @@ function renderFilters() {
     .filter(Boolean)
     .sort((a, b) => (ORDER.indexOf(a) + 1 || 99) - (ORDER.indexOf(b) + 1 || 99) || (a < b ? -1 : 1));
   if (F.league && !lg.includes(F.league)) lg.push(F.league);
+  const lgOf = (p) => (p.desk === "crypto" ? "Crypto" : p.league);
+  const bets = plan().filter((p) => p.slate && inWindow(p));
+  const nn = (k, w) => `${k} ${w}${k === 1 ? "" : "s"}`;
+  const sub = (l) => {
+    const g = (S.games || []).filter((x) => (!l || x.league === l) && inWindow(x)).length;
+    const k = bets.filter((p) => !l || lgOf(p) === l).length;
+    if (!l) return WLAB[F.w];
+    if (l === "Crypto") return k ? nn(k, "bet") : "Always open";
+    return g ? nn(g, "game") + (k ? ` · ${nn(k, "bet")}` : "") : "No games";
+  };
   $("#sports").innerHTML = ["", ...lg]
-    .map(
-      (l) =>
-        `<button data-l="${esc(l)}" aria-pressed="${F.league === l}">${l ? esc(l) : "All sports"}</button>`,
-    )
+    .map((l) => `<button data-l="${esc(l)}" aria-pressed="${F.league === l}" title="${esc(l || "All sports")}"><b>${l ? esc(SHORT[l] || l) : "All sports"}</b><small>${sub(l)}</small></button>`)
     .join("");
   options(
     "#fConf",
@@ -613,7 +622,7 @@ function lines(g) {
   const gt = dt == null ? "–" : Math.abs(dt) < 0.05 ? "even" : `${Math.abs(dt).toFixed(1)} ${dt > 0 ? "over" : "under"}`;
   return `<div class="ln"><span>Vegas line</span>${has ? `<b>${spreadTxt(g, v.margin)}</b><b>${totalTxt(v.total)}</b>` : `<em>not posted yet</em>`}
     <span class="kc">Kil Cap line</span><b class="kc">${spreadTxt(g, k.margin)}</b><b class="kc">${totalTxt(k.total)}</b>${
-    has ? `<span>Gap</span><i>${gm}</i><i>${gt}</i>` : ""}</div>`;
+    has ? `<span>Gap</span><i>${gm}</i><i class="ref" title="Total gaps are shown for reference. They have not beaten Vegas in testing.">${gt}</i>` : ""}</div>`;
 }
 function pickCard(p, i) {
   const lv = level(p), { game, bet } = plainBet(p);
@@ -656,7 +665,41 @@ $("#cards").addEventListener("keydown", (e) => {
   const c = e.target.closest("[data-t]");
   if (c && e.key === "Enter") openPick(c.dataset.t);
 });
-function renderTop5() {} // snip: Top 5 strip folded into the ranked cards
+// Top 5 across every sport, with its own Today / This weekend window. One row per game.
+let T5W = "today";
+function renderTop5() {
+  if (!S) return;
+  for (const b of document.querySelectorAll("#t5When button")) b.setAttribute("aria-pressed", b.dataset.w === T5W);
+  $("#t5Title").textContent = `${T5W === "today" ? "Today's" : "This weekend's"} all-sport top 5`;
+  const inW = (p) => p.start && inWindow(p, T5W);
+  const seen = new Set();
+  const top = plan().filter(inW).concat(gameCalls().filter(inW))
+    .sort((a, b) => b.slate - a.slate || (a.slate ? SORTS.profit(a, b) : b.fair - a.fair)) // staked first, then likeliest winners
+    .filter((p) => !p.game_id || (!seen.has(p.game_id) && seen.add(p.game_id))).slice(0, 5);
+  $("#top5").innerHTML = top.length
+    ? top.map((p, i) => {
+        const lv = level(p), { game, bet } = plainBet(p);
+        return `<li data-t="${esc(p.ticker)}" tabindex="0"><span class="n">${i + 1}</span><div><b>${p.slate ? "★ " : ""}${esc(bet)}</b><small>${esc(SHORT[p.league] || p.league)} · ${esc(game)} · ${startsIn(p.start)}</small></div><span class="lvl ${lv}">${LV[lv]}</span><span class="w">${pct(p.fair, 0)}</span></li>`;
+      }).join("")
+    : `<li class="none">No games in this window yet.</li>`;
+}
+$("#t5When").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-w]");
+  if (b) ((T5W = b.dataset.w), renderTop5());
+});
+$("#top5").addEventListener("click", (e) => {
+  const li = e.target.closest("[data-t]");
+  if (li) openPick(li.dataset.t);
+});
+$("#top5").addEventListener("keydown", (e) => {
+  const li = e.target.closest("[data-t]");
+  if (li && e.key === "Enter") openPick(li.dataset.t);
+});
+$("#fullCard").addEventListener("click", () => {
+  Object.assign(F, DEF, { w: "week", win: false });
+  update();
+  $("#picksPanel").scrollIntoView({ behavior: "smooth" });
+});
 
 function renderKpis() {
   if (!S) return;
@@ -773,8 +816,8 @@ function openPick(ticker) {
   const m = g?.model || {};
   const notes = [
     ...(m.notes || []),
-    ...(m.injuries || []).map((x) =>
-      typeof x === "string" ? x : x.name || JSON.stringify(x),
+    ...Object.entries(m.injuries || {}).flatMap(([team, list]) =>
+      [].concat(list).map((x) => `${team}: ${x}`),
     ),
   ];
   $("#drawerBody").innerHTML = `
@@ -799,7 +842,7 @@ function openPick(ticker) {
         <div><span>Vegas line</span><b>${spreadTxt(g, g.book?.margin)}</b></div>
         <div><span>Kil Cap line</span><b>${spreadTxt(g, m.margin)}</b></div>
         <div><span>Vegas total</span><b>${totalTxt(g.book?.total)}</b></div>
-        <div><span>Kil Cap total</span><b>${totalTxt(m.total)}</b></div>
+        <div><span>Kil Cap total (reference)</span><b>${totalTxt(m.total)}</b></div>
       </div>
       ${notes.length ? `<ul>${notes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>` : ""}
       ${m.weather ? `<p class="small muted">Weather: ${esc(typeof m.weather === "string" ? m.weather : JSON.stringify(m.weather))}</p>` : ""}`
@@ -1548,8 +1591,14 @@ $("#tabs").addEventListener("click", (e) => {
   if (!a || e.metaKey || e.ctrlKey || e.shiftKey) return; // let new-tab clicks through
   e.preventDefault();
   showTab(a.dataset.tab, true);
-  scrollTo(0, 0);
+  $("#tabs").scrollIntoView();
 });
+$("#hBook").onclick = () => (showTab("book", true), $("#tabs").scrollIntoView());
+$("#hBank").onclick = () => {
+  showTab("board", true);
+  $("#uBank").scrollIntoView({ block: "center" });
+  $("#uBank").focus();
+};
 addEventListener("popstate", () => {
   loadUrl();
   showTab(TAB);
@@ -1562,7 +1611,7 @@ setView(VIEW);
 (function theme() {
   let saved = null;
   try {
-    saved = localStorage.getItem("kil-theme2");
+    saved = localStorage.getItem("kil-theme3");
   } catch {}
   if (saved) document.documentElement.dataset.theme = saved;
   $("#theme").onclick = () => {
@@ -1571,7 +1620,7 @@ setView(VIEW);
       : true;
     document.documentElement.dataset.theme = dark ? "light" : "dark";
     try {
-      localStorage.setItem("kil-theme2", document.documentElement.dataset.theme);
+      localStorage.setItem("kil-theme3", document.documentElement.dataset.theme);
     } catch {}
   };
 })();
