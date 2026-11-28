@@ -1,0 +1,274 @@
+[
+ {
+  "league": "nfl",
+  "n_games": 164,
+  "promoted": true,
+  "ts": 1795711142.553851,
+  "holdout_n": 43,
+  "champion_logloss": 0.5581,
+  "challenger_logloss": 0.5543,
+  "challenger": {
+   "hfa": 0.96,
+   "halflife_days": 140.0,
+   "lam": 1.0
+  },
+  "tune_logloss": 0.6396,
+  "params": {
+   "hfa": 0.96,
+   "halflife_days": 140.0,
+   "lam": 1.0,
+   "sigma_margin": 11.82,
+   "sigma_total": 14.31,
+   "w_model": 0.35,
+   "promoted_ts": 1795711142.553851
+  }
+ },
+ {
+  "league": "nba",
+  "n_games": 270,
+  "promoted": false,
+  "ts": 1795711153.2201056,
+  "holdout_n": 150,
+  "champion_logloss": 0.6049,
+  "challenger_logloss": 0.6141,
+  "challenger": {
+   "hfa": 1.2,
+   "halflife_days": 22.5,
+   "lam": 5.0
+  },
+  "tune_logloss": 0.6759,
+  "reason": "challenger did not beat champion on unseen games"
+ },
+ {
+  "league": "cfb",
+  "n_games": 824,
+  "promoted": true,
+  "ts": 1795711176.3134296,
+  "holdout_n": 199,
+  "champion_logloss": 0.5956,
+  "challenger_logloss": 0.5933,
+  "challenger": {
+   "hfa": 3.5,
+   "halflife_days": 140.0,
+   "lam": 1.0
+  },
+  "tune_logloss": 0.6115,
+  "params": {
+   "hfa": 3.5,
+   "halflife_days": 140.0,
+   "lam": 1.0,
+   "sigma_margin": 16.9,
+   "sigma_total": 15.78,
+   "w_model": 0.45,
+   "promoted_ts": 1795711176.3134296
+  }
+ },
+ {
+  "league": "cbb",
+  "n_games": 1432,
+  "promoted": false,
+  "ts": 1795711194.2217536,
+  "holdout_n": 1008,
+  "champion_logloss": 0.5692,
+  "challenger_logloss": 0.5705,
+  "challenger": {
+   "hfa": 1.8,
+   "halflife_days": 22.5,
+   "lam": 1.0
+  },
+  "tune_logloss": Infinity,
+  "reason": "challenger did not beat champion on unseen games"
+ },
+ {
+  "league": "nhl",
+  "n_games": 360,
+  "promoted": false,
+  "ts": 1795711207.8544092,
+  "holdout_n": 149,
+  "champion_logloss": 0.6868,
+  "challenger_logloss": 0.688,
+  "challenger": {
+   "hfa": 0.21,
+   "halflife_days": 22.5,
+   "lam": 5.0
+  },
+  "tune_logloss": 0.6789,
+  "reason": "challenger did not beat champion on unseen games"
+ },
+ {
+  "league": "nfl",
+  "n_games": 167,
+  "promoted": false,
+  "ts": 1795773749.0358362,
+  "holdout_n": 45,
+  "champion_logloss": 0.581,
+  "challenger_logloss": 0.581,
+  "challenger": {
+   "hfa": 0.96,
+   "halflife_days": 140.0,
+   "lam": 1.0
+  },
+  "tune_logloss": 0.6337,
+  "reason": "challenger did not beat champion on unseen games"
+ },
+ {
+  "league": "nba",
+  "n_games": 270,
+  "promoted": false,
+  "ts": 1795773750.354377,
+  "holdout_n": 150,
+  "champion_logloss": 0.6049,
+  "challenger_logloss": 0.6141,
+  "challenger": {
+   "hfa": 1.2,
+   "halflife_days": 22.5,
+   "lam": 5.0
+  },
+  "tune_logloss": 0.6759,
+  "reason": "challenger did not beat champion on unseen games"
+ },
+ {
+  "league": "cfb",
+  "n_games": 825,
+  "promoted": false,
+  "ts": 1795773750.9721248,
+  "holdout_n": 194,
+  "champion_logloss": 0.593,
+  "challenger_logloss": 0.593,
+  "challenger": {
+   "hfa": 3.5,
+   "halflife_days": 140.0,
+   "lam": 1.0
+  },
+  "tune_logloss": 0.6107,
+  "reason": "challenger did not beat champion on unseen games"
+ },
+ {
+  "league": "cbb",
+  "n_games": 1453,
+  "promoted": true,
+  "ts": 1795773758.1727931,
+  "holdout_n": 993,
+  "champion_logloss": 0.5683,
+  "challenger_logloss": 0.5443,
+  "challenger": {
+   "hfa": 4.2,
+   "halflife_days": 90.0,
+   "lam": 1.0
+  },
+  "tune_logloss": 0.554,
+  "params": {
+   "hfa": 4.2,
+   "halflife_days": 90.0,
+   "lam": 1.0,
+   "sigma_margin": 17.58,
+   "sigma_total": 21.08,
+   "w_model": 0.45,
+   "promoted_ts": 1795773758.1727931
+  }
+ },
+ {
+  "league": "nhl",
+  "n_games": 360,
+  "promoted": false,
+  "ts": 1795773759.3109894,
+  "holdout_n": 149,
+  "champion_logloss": 0.6868,
+  "challenger_logloss": 0.688,
+  "challenger": {
+   "hfa": 0.21,
+   "halflife_days": 22.5,
+   "lam": 5.0
+  },
+  "tune_logloss": 0.6789,
+  "reason": "challenger did not beat champion on unseen games"
+ },
+ {
+  "league": "nfl",
+  "n_games": 168,
+  "promoted": false,
+  "ts": 1795860081.4655056,
+  "holdout_n": 46,
+  "champion_logloss": 0.5848,
+  "challenger_logloss": 0.5848,
+  "challenger": {
+   "hfa": 0.96,
+   "halflife_days": 140.0,
+   "lam": 1.0
+  },
+  "tune_logloss": 0.6337,
+  "reason": "challenger did not beat champion on unseen games"
+ },
+ {
+  "league": "nba",
+  "n_games": 281,
+  "promoted": false,
+  "ts": 1795860083.4705932,
+  "holdout_n": 151,
+  "champion_logloss": 0.6148,
+  "challenger_logloss": 0.6132,
+  "challenger": {
+   "hfa": 1.2,
+   "halflife_days": 90.0,
+   "lam": 5.0
+  },
+  "tune_logloss": 0.6641,
+  "reason": "challenger did not beat champion on unseen games"
+ },
+ {
+  "league": "cfb",
+  "n_games": 838,
+  "promoted": false,
+  "ts": 1795860084.3147082,
+  "holdout_n": 203,
+  "champion_logloss": 0.5874,
+  "challenger_logloss": 0.5874,
+  "challenger": {
+   "hfa": 3.5,
+   "halflife_days": 140.0,
+   "lam": 1.0
+  },
+  "tune_logloss": 0.6114,
+  "reason": "challenger did not beat champion on unseen games"
+ },
+ {
+  "league": "cbb",
+  "n_games": 1508,
+  "promoted": false,
+  "ts": 1795860096.2506094,
+  "holdout_n": 994,
+  "champion_logloss": 0.5466,
+  "challenger_logloss": 0.5466,
+  "challenger": {
+   "hfa": 4.2,
+   "halflife_days": 90.0,
+   "lam": 1.0
+  },
+  "tune_logloss": 0.5468,
+  "reason": "challenger did not beat champion on unseen games"
+ },
+ {
+  "league": "nhl",
+  "n_games": 375,
+  "promoted": true,
+  "ts": 1795860098.0524085,
+  "holdout_n": 150,
+  "champion_logloss": 0.7081,
+  "challenger_logloss": 0.7059,
+  "challenger": {
+   "hfa": 0.21,
+   "halflife_days": 45.0,
+   "lam": 5.0
+  },
+  "tune_logloss": 0.6784,
+  "params": {
+   "hfa": 0.21,
+   "halflife_days": 45.0,
+   "lam": 5.0,
+   "sigma_margin": 2.56,
+   "sigma_total": 2.42,
+   "w_model": 0.3,
+   "promoted_ts": 1795860098.0524085
+  }
+ }
+]

@@ -1,0 +1,38 @@
+{
+ "nfl": {
+  "hfa": 0.96,
+  "halflife_days": 140.0,
+  "lam": 1.0,
+  "sigma_margin": 11.82,
+  "sigma_total": 14.31,
+  "w_model": 0.35,
+  "promoted_ts": 1795711142.553851
+ },
+ "cfb": {
+  "hfa": 3.5,
+  "halflife_days": 140.0,
+  "lam": 1.0,
+  "sigma_margin": 16.9,
+  "sigma_total": 15.78,
+  "w_model": 0.45,
+  "promoted_ts": 1795711176.3134296
+ },
+ "cbb": {
+  "hfa": 4.2,
+  "halflife_days": 90.0,
+  "lam": 1.0,
+  "sigma_margin": 17.58,
+  "sigma_total": 21.08,
+  "w_model": 0.45,
+  "promoted_ts": 1795773758.1727931
+ },
+ "nhl": {
+  "hfa": 0.21,
+  "halflife_days": 45.0,
+  "lam": 5.0,
+  "sigma_margin": 2.56,
+  "sigma_total": 2.42,
+  "w_model": 0.3,
+  "promoted_ts": 1795860098.0524085
+ }
+}

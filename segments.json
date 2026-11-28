@@ -1,0 +1,296 @@
+{
+ "nba|winner|5-10c|fav": {
+  "n": 3,
+  "win_rate": 0.333,
+  "roi": -0.492,
+  "shrunk_roi": -0.0096,
+  "mult": 0.961
+ },
+ "cfb|spread|3-5c|dog": {
+  "n": 14,
+  "win_rate": 0.214,
+  "roi": -0.3327,
+  "shrunk_roi": -0.0284,
+  "mult": 0.886
+ },
+ "cfb|spread|5-10c|dog": {
+  "n": 29,
+  "win_rate": 0.069,
+  "roi": -0.7816,
+  "shrunk_roi": -0.1266,
+  "mult": 0.0
+ },
+ "cfb|total|5-10c|dog": {
+  "n": 8,
+  "win_rate": 0.5,
+  "roi": 0.2151,
+  "shrunk_roi": 0.0109,
+  "mult": 1.044
+ },
+ "cfb|total|3-5c|dog": {
+  "n": 6,
+  "win_rate": 0.333,
+  "roi": 0.3742,
+  "shrunk_roi": 0.0144,
+  "mult": 1.058
+ },
+ "cfb|winner|5-10c|dog": {
+  "n": 3,
+  "win_rate": 0.0,
+  "roi": -1.0,
+  "shrunk_roi": -0.0196,
+  "mult": 0.922
+ },
+ "cfb|winner|3-5c|dog": {
+  "n": 3,
+  "win_rate": 0.0,
+  "roi": -1.0,
+  "shrunk_roi": -0.0196,
+  "mult": 0.922
+ },
+ "cbb|winner|5-10c|dog": {
+  "n": 29,
+  "win_rate": 0.379,
+  "roi": 0.2279,
+  "shrunk_roi": 0.0369,
+  "mult": 1.148
+ },
+ "cbb|spread|5-10c|dog": {
+  "n": 96,
+  "win_rate": 0.323,
+  "roi": -0.0686,
+  "shrunk_roi": -0.0268,
+  "mult": 0.893
+ },
+ "cbb|total|5-10c|dog": {
+  "n": 45,
+  "win_rate": 0.133,
+  "roi": -0.6523,
+  "shrunk_roi": -0.1505,
+  "mult": 0.0
+ },
+ "cbb|spread|5-10c|fav": {
+  "n": 53,
+  "win_rate": 0.811,
+  "roi": 0.1993,
+  "shrunk_roi": 0.052,
+  "mult": 1.208
+ },
+ "cbb|spread|3-5c|fav": {
+  "n": 48,
+  "win_rate": 0.688,
+  "roi": 0.0122,
+  "shrunk_roi": 0.003,
+  "mult": 1.012
+ },
+ "cbb|total|10c+|fav": {
+  "n": 18,
+  "win_rate": 0.667,
+  "roi": 0.0538,
+  "shrunk_roi": 0.0058,
+  "mult": 1.023
+ },
+ "cbb|total|10c+|dog": {
+  "n": 21,
+  "win_rate": 0.429,
+  "roi": 0.2038,
+  "shrunk_roi": 0.025,
+  "mult": 1.1
+ },
+ "cbb|winner|3-5c|dog": {
+  "n": 34,
+  "win_rate": 0.441,
+  "roi": 0.1243,
+  "shrunk_roi": 0.023,
+  "mult": 1.092
+ },
+ "cbb|total|5-10c|fav": {
+  "n": 29,
+  "win_rate": 0.414,
+  "roi": -0.3636,
+  "shrunk_roi": -0.0589,
+  "mult": 0.0
+ },
+ "cbb|winner|3-5c|fav": {
+  "n": 4,
+  "win_rate": 0.5,
+  "roi": -0.0521,
+  "shrunk_roi": -0.0014,
+  "mult": 0.995
+ },
+ "cbb|total|3-5c|fav": {
+  "n": 9,
+  "win_rate": 0.889,
+  "roi": 0.3216,
+  "shrunk_roi": 0.0182,
+  "mult": 1.073
+ },
+ "cbb|winner|5-10c|fav": {
+  "n": 8,
+  "win_rate": 0.5,
+  "roi": -0.2388,
+  "shrunk_roi": -0.0121,
+  "mult": 0.952
+ },
+ "cbb|spread|10c+|fav": {
+  "n": 5,
+  "win_rate": 0.4,
+  "roi": -0.2693,
+  "shrunk_roi": -0.0087,
+  "mult": 0.965
+ },
+ "cbb|spread|3-5c|dog": {
+  "n": 131,
+  "win_rate": 0.336,
+  "roi": 0.0876,
+  "shrunk_roi": 0.0409,
+  "mult": 1.163
+ },
+ "cbb|winner|10c+|dog": {
+  "n": 10,
+  "win_rate": 0.2,
+  "roi": -0.5019,
+  "shrunk_roi": -0.0314,
+  "mult": 0.0
+ },
+ "cbb|winner|10c+|fav": {
+  "n": 2,
+  "win_rate": 0.0,
+  "roi": -1.0,
+  "shrunk_roi": -0.0132,
+  "mult": 0.947
+ },
+ "nhl|spread|5-10c|fav": {
+  "n": 9,
+  "win_rate": 0.444,
+  "roi": -0.4708,
+  "shrunk_roi": -0.0266,
+  "mult": 0.893
+ },
+ "nhl|spread|5-10c|dog": {
+  "n": 3,
+  "win_rate": 0.0,
+  "roi": -1.0,
+  "shrunk_roi": -0.0196,
+  "mult": 0.922
+ },
+ "nhl|total|5-10c|fav": {
+  "n": 5,
+  "win_rate": 0.6,
+  "roi": -0.0167,
+  "shrunk_roi": -0.0005,
+  "mult": 0.998
+ },
+ "nhl|winner|10c+|fav": {
+  "n": 1,
+  "win_rate": 1.0,
+  "roi": 0.9324,
+  "shrunk_roi": 0.0062,
+  "mult": 1.025
+ },
+ "nhl|winner|10c+|dog": {
+  "n": 1,
+  "win_rate": 1.0,
+  "roi": 0.9705,
+  "shrunk_roi": 0.0064,
+  "mult": 1.026
+ },
+ "nhl|spread|10c+|fav": {
+  "n": 2,
+  "win_rate": 1.0,
+  "roi": 0.2833,
+  "shrunk_roi": 0.0037,
+  "mult": 1.015
+ },
+ "nhl|spread|10c+|dog": {
+  "n": 2,
+  "win_rate": 0.0,
+  "roi": -1.0,
+  "shrunk_roi": -0.0132,
+  "mult": 0.947
+ },
+ "nhl|total|5-10c|dog": {
+  "n": 1,
+  "win_rate": 0.0,
+  "roi": -1.0,
+  "shrunk_roi": -0.0066,
+  "mult": 0.974
+ },
+ "nhl|total|10c+|dog": {
+  "n": 1,
+  "win_rate": 1.0,
+  "roi": 3.1255,
+  "shrunk_roi": 0.0207,
+  "mult": 1.083
+ },
+ "nfl|spread|5-10c|dog": {
+  "n": 2,
+  "win_rate": 0.5,
+  "roi": 0.9002,
+  "shrunk_roi": 0.0118,
+  "mult": 1.047
+ },
+ "nfl|spread|5-10c|fav": {
+  "n": 4,
+  "win_rate": 1.0,
+  "roi": 0.3598,
+  "shrunk_roi": 0.0093,
+  "mult": 1.037
+ },
+ "nba|spread|5-10c|fav": {
+  "n": 3,
+  "win_rate": 0.667,
+  "roi": -0.1607,
+  "shrunk_roi": -0.0032,
+  "mult": 0.987
+ },
+ "cbb|total|3-5c|dog": {
+  "n": 59,
+  "win_rate": 0.085,
+  "roi": -0.7474,
+  "shrunk_roi": -0.211,
+  "mult": 0.0
+ },
+ "cbb|spread|10c+|dog": {
+  "n": 24,
+  "win_rate": 0.542,
+  "roi": 0.4588,
+  "shrunk_roi": 0.0633,
+  "mult": 1.253
+ },
+ "nhl|winner|5-10c|fav": {
+  "n": 4,
+  "win_rate": 0.0,
+  "roi": -1.0,
+  "shrunk_roi": -0.026,
+  "mult": 0.896
+ },
+ "nhl|winner|3-5c|fav": {
+  "n": 2,
+  "win_rate": 0.0,
+  "roi": -1.0,
+  "shrunk_roi": -0.0132,
+  "mult": 0.947
+ },
+ "nba|total|5-10c|dog": {
+  "n": 1,
+  "win_rate": 1.0,
+  "roi": 1.1398,
+  "shrunk_roi": 0.0075,
+  "mult": 1.03
+ },
+ "cfb|spread|5-10c|fav": {
+  "n": 1,
+  "win_rate": 0.0,
+  "roi": -1.0,
+  "shrunk_roi": -0.0066,
+  "mult": 0.974
+ },
+ "cfb|spread|3-5c|fav": {
+  "n": 3,
+  "win_rate": 0.0,
+  "roi": -1.0,
+  "shrunk_roi": -0.0196,
+  "mult": 0.922
+ }
+}

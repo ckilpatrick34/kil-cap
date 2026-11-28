@@ -1,0 +1,29 @@
+{
+ "ts": 1795860099.4033167,
+ "n": 457,
+ "w": 0.1,
+ "promoted": true,
+ "challenger": 0.1,
+ "champion_logloss": 0.6578,
+ "challenger_logloss": 0.6523,
+ "holdout_n": 138,
+ "history": [
+  {
+   "ts": 1795773760.130745,
+   "n": 0,
+   "w": 0.5,
+   "promoted": false,
+   "reason": "0 graded picks with market data, need 60"
+  },
+  {
+   "ts": 1795860099.4033167,
+   "n": 457,
+   "w": 0.1,
+   "promoted": true,
+   "challenger": 0.1,
+   "champion_logloss": 0.6578,
+   "challenger_logloss": 0.6523,
+   "holdout_n": 138
+  }
+ ]
+}
